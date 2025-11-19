@@ -63,29 +63,25 @@ Motor motor1 = Motor(AAIN1, AAIN2, APWMA, offsetA, ASTBY);
 Motor motor2 = Motor(ABIN1, ABIN2, APWMB, offsetB, ASTBY);
 Motor motor3 = Motor(BAIN1, BAIN2, BPWMA, offsetC, BSTBY);
 
-
-// READ ALL SENSORS & SEND FLAGS BACK TO PYTHON
-// Output format example:
-// FL:0 FR:1 L:0 R:0 B:0\n
-//
-// 1 = obstacle detected
-// 0 = clear
+const int threshold = 9; // distance below which sensor is "blocked"
 
   
-
 void loop() {
+  if (Serial.available()) {
+    String request = Serial.readStringUntil('\n');
+    request.trim();
 
-  for (int i = 0; i < numSensors; i++) {
-    long distance = readUltrasonic(sensors[i].trigPin, sensors[i].echoPin);
-    Serial.print(sensors[i].name);
-    Serial.print(": ");
-    if (distance == 0) {
-      Serial.println("Out of range");
-    } else {
-      Serial.print(distance);
-      Serial.println(" cm");
+    if (request == "PSD") {
+      String output = "";
+
+      for (int i = 0; i < numSensors; i++) {
+        long distance = readUltrasonic(sensors[i].trigPin, sensors[i].echoPin);
+        int blocked = (distance >= 0 && distance <= threshold) ? 1 : 0;
+        output += String(sensors[i].name) + ":" + String(blocked);
+        if (i < numSensors - 1) output += " ";
+      }
+
+      Serial.println(output); // send to Python
     }
   }
-  Serial.println("----------------");
-  delay(500); // Read every 0.5 seconds
 }
