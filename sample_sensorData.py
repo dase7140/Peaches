@@ -1,30 +1,30 @@
 from __future__ import print_function
-import pixy
-from ctypes import *
-from pixy import *
 import time
 import serial
 
 if __name__ == '__main__':
 	arduino = serial.Serial('/dev/ttyACM0', 115200, timeout=.05)
-	
+	time.sleep(1)
 while True:
-	arduino.write(b"PSD\n")
-	flags = arduino.readline().decode().strip()
+    arduino.write(b"PSD\n")
+    flags = arduino.readline().decode().strip()
 
-	print(flags)
-# Example output: "FL:0 FR:1 L:0 R:0 B:0"
+    if flags:  # only parse if data is received
+        #print("Received:", flags)
+        try:
+            parts = dict(p.split(":") for p in flags.split())
+            flBlocked   = parts.get("FL") == "1"
+            frBlocked   = parts.get("FR") == "1"
+            leftBlocked = parts.get("L")  == "1"
+            rightBlocked= parts.get("R")  == "1"
+            backBlocked = parts.get("B")  == "1"
 
-	parts = dict(p.split(":") for p in flags.split())
+            # Example usage: robot logic
+            print(f"FL:{flBlocked} FR:{frBlocked} L:{leftBlocked} R:{rightBlocked} B:{backBlocked}")
 
-	flBlocked  = parts["FL"] == "1"
-	frBlocked = parts["FR"] == "1"
-	leftBlocked = parts["L"]  == "1"
-	rightBlocked = parts["R"]  == "1"
-	backBlocked = parts["B"]  == "1"
-    
+        except Exception as e:
+            print("Parsing error:", e)
+    else:
+        print("No data received from Arduino")
 
-time.sleep(5)
-
-
-#left at checking what pins are what sensors
+    time.sleep(0.1)  # small delay for reliability
