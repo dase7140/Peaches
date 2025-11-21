@@ -8,8 +8,8 @@ struct UltrasonicSensor {
 
 // List of sensors
 UltrasonicSensor sensors[] = {
-  {27, 26, "FL"},
-  {29, 28, "FR"},
+  {35, 34, "FL"},
+  {33, 32, "FR"},
   {31, 30, "R"},
   {25, 24, "L"},
   {23, 22, "B"}
@@ -63,25 +63,36 @@ Motor motor1 = Motor(AAIN1, AAIN2, APWMA, offsetA, ASTBY);
 Motor motor2 = Motor(ABIN1, ABIN2, APWMB, offsetB, ASTBY);
 Motor motor3 = Motor(BAIN1, BAIN2, BPWMA, offsetC, BSTBY);
 
-const int threshold = 9; // distance below which sensor is "blocked"
+const int threshold = 20;
 
   
 void loop() {
-  if (Serial.available()) {
+ if (Serial.available()) {
     String request = Serial.readStringUntil('\n');
     request.trim();
 
-    if (request == "PSD") {
-      String output = "";
+  if (request == "PSD") {
+      
 
-      for (int i = 0; i < numSensors; i++) {
-        long distance = readUltrasonic(sensors[i].trigPin, sensors[i].echoPin);
-        int blocked = (distance >= 0 && distance <= threshold) ? 1 : 0;
-        output += String(sensors[i].name) + ":" + String(blocked);
-        if (i < numSensors - 1) output += " ";
-      }
+    String output = "";
 
-      Serial.println(output); // send to Python
+    for (int i = 0; i < numSensors; i++) {
+
+      long distance = readUltrasonic(sensors[i].trigPin, sensors[i].echoPin);
+
+      int blocked = 0;
+
+    // Ignore invalid readings (0 = timeout/no echo)
+      if (distance > 0 && distance <= threshold) {
+        blocked = 1;
     }
+
+    output += String(sensors[i].name) + ":" + String(blocked);
+    if (i < numSensors - 1) output += " ";
   }
+
+  Serial.println(output);  // Send result to Python
+  delay(50);
+}
+}
 }
