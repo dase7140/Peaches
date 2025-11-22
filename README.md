@@ -13,10 +13,10 @@ Update: (Friday before break)
   Also, the pixy is trained on the ramp and gravel flags. If you see on the pi main loop you'll see that there are new target signatures that the pi is checking. It runs with the priority of gravel->ramp-> dice. if it sees gravel: it should pick up the tray(the tray motor definition isnt set up on the arduino yet), if it sees a ramp: it should orient? (this is where I haven't really decided what to do), the dice is the same as what I showed yall awhile ago. It centers towards the dice. My concern with this is that itll run into a wall trying to center. So we should add checkTOFs() at certain points before it orients to ensure it CAN in the first place. 
 
 Things left to do:    
-  Set the behavior for what to do when gravel and ramp flags appear
-  Test navigation
-    Test the gravel and ramp flags
-  Pick up the pan
+  Set the behavior for what to do when gravel and ramp flags appear,
+  Test navigation,
+    Test the gravel and ramp flags,
+  Pick up the pan,
   Color sorter
   
 if you can't find the files on the pi for the python scripts, make a new sketch but make sure its in the python mechatronics directory next to a .i, pixy.cpy and pixy.py file (only for python code that uses pixy)
