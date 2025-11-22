@@ -19,5 +19,6 @@ Things left to do:
   Pick up the pan
   Color sorter
   
-  
+if you can't find the files on the pi for the python scripts, make a new sketch but make sure its in the python mechatronics directory next to a .i, pixy.cpy and pixy.py file (only for python code that uses pixy)
+
 Lowkey I might just come in on Tuesday cause yea
