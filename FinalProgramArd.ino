@@ -9,8 +9,8 @@ struct UltrasonicSensor {
 
 // List of sensors
 UltrasonicSensor sensors[] = {
-  {35, 34, "FL", false},
-  {33, 32, "FR", false},
+  {35, 34, "FR", false},
+  {33, 32, "FL", false},
   {31, 30, "R",  false},
   {25, 24, "L",  false},
   {23, 22, "B",  false}
