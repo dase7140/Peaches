@@ -5,7 +5,7 @@ import serial
 if __name__ == '__main__':
 	arduino = serial.Serial('/dev/ttyACM0', 115200, timeout=.05)
 	time.sleep(1)
-while True:
+def checkTOFs():
     arduino.write(b"PSD\n")
     flags = arduino.readline().decode().strip()
 
@@ -24,7 +24,12 @@ while True:
 
         except Exception as e:
             print("Parsing error:", e)
+ 
     else:
         print("No data received from Arduino")
 
     time.sleep(0.1)  # small delay for reliability
+
+	
+while True:
+	checkTOFs()
