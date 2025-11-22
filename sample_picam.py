@@ -3,9 +3,6 @@ import cv2
 import numpy as np
 
 # Initialize PiCamera2
-
-# If yellow is seen in the middle, it  will say not detected
-
 picam2 = Picamera2()
 config = picam2.create_preview_configuration(main={"size": (640, 480)})
 picam2.configure(config)
@@ -15,45 +12,56 @@ LOWER_BLUE = np.array([100, 150, 50])
 UPPER_BLUE = np.array([140, 255, 255])
 
 
-def is_yellow_visible(frame):
+
+
+def is_color_visible(frame):
     """
-    Detect yellow tape on the left side of the robot.
+    Detect yellow tape and determine if it is at the top of the frame.
     Returns:
-        visible (bool): True if yellow tape detected
-        center_x (int): x-coordinate of yellow line center (None if not detected)
+        visible (bool)
+        center_x (int or None)
+        at_top (bool): True if yellow line is near the top of the screen
     """
     hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
     mask = cv2.inRange(hsv, LOWER_BLUE, UPPER_BLUE)
 
-    # Reduce noise
+    # Clean noise
     mask = cv2.GaussianBlur(mask, (5,5), 0)
     mask = cv2.dilate(mask, None, iterations=2)
 
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+    frame_h = frame.shape[0]
+
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
 
-        # Ignore tiny blobs
         if w < 20 or h < 20:
             continue
 
         center_x = x + w // 2
+        center_y = y + h // 2  # vertical position of tape
 
-        # Check if center is on the left side of the frame
-        if center_x < frame.shape[1] // 2:
-            return True, center_x
+        # Tape is considered at the top if its center is in the top 25%***** of the frame
+        at_top = center_y < frame_h * 0.25
 
-    # If no valid yellow line found
-    return False, None
+        return True, center_x, at_top
+
+    return False, None, False
+
 
 # Example usage
 while True:
     frame = picam2.capture_array()
-    yellow_seen, center = is_yellow_visible(frame)
+    visible, center, at_top = is_color_visible(frame)
 
-    if yellow_seen:
-        print(f"Yellow tape detected at x={center}")
+    if visible:
+        print(f"Yellow tape at x={center}", end="")
+
+        if at_top:
+            print(" → Tape at TOP (correct direction)")
+        else:
+            print(" → Tape NOT at top (wrong direction!)")
     else:
         print("No yellow tape detected")
 
