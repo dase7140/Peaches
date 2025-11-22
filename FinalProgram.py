@@ -150,14 +150,18 @@ def navigate_with_tofs():
 	if fl or fr:
 		if left and not right:
 			arduino.write(b"MR0\n")
+			print("Turning Right, obstacle at front")
 			return
 		if right and not left:
 			arduino.write(b"ML0\n")
+			print("Turning Left, obstacle at front")
 			return
 		if left and right:
+			print("Reversing, obstacle at front")
 			arduino.write(b"MB0\n")
 			return
 		else:
+			print("Turning right")
 			arduino.write(b"MR0\n")
 			return
 
@@ -186,8 +190,8 @@ def navigate_with_tofs():
 		return
 
     # 6. ALL CLEAR → move forward
-	print("Path clear → moving forward")
-	arduino.write(b"MF0\n")
+	#print("Path clear → moving forward")
+	#arduino.write(b"MF0\n")
 
 def dice_track():
 	count = pixy.ccc_get_blocks(100, blocks)
@@ -250,32 +254,40 @@ while True:
 	visible, center, at_top = is_color_visible(frame)
 	#Pixy
 	count = pixy.ccc_get_blocks(100, blocks)
-	#if visible:
-		#if at_top:
-			#print(" → Tape at TOP (correct direction)")
-# targetSeen = seeColor(targetSignature, count)
-# targetX = getTargetX(targetSignature, count
-# gravelSeen = seeColor(targetSignature, count)
-# gravelX = getTargetX(targetSignature, count)
-# rampSeen = seeColor(targetSignature, count)
-# rampX = getTargetX(targetSignature, count)
-	navigate_with_tofs()
-			
-		#else:
-			#print(" → Tape NOT at top (wrong direction!)")
-	#else:
-		#print("No yellow tape detected")
-	#state = "navigate"
-	# if state == "navigate"
-		# navigate_with_tofs()
-	#if gravelSeen 
-		#state = "dice_track"
+	
+	if visible:
+		if at_top:
+			print(" → Tape at TOP (correct direction)")
+			#only if visible does the navigation function run
+			#"State Model Below" lines would continue here
+		else:
+			print(" → Tape NOT at top (wrong direction!)")
+	
+#State Model Below:
+	#Variables that check the sensor data:
+	targetSeen = seeColor(targetSignature, count)
+	targetX = getTargetX(targetSignature, count)
+	gravelSeen = seeColor(gravelSignature, count)
+	gravelX = getTargetX(gravelSignature, count)
+	rampSeen = seeColor(rampSignature, count)
+	rampX = getTargetX(rampSignature, count)
+	
+	state = "navigate"
+	#if state == "navigate":
+		#print(state)
+		#navigate_with_tofs()
+	if gravelSeen:
+		state = "dice_track"
+		print(state)
 		#gravel_warn()
-	#if rampSeen 
-		#state = "ramp_warn"
+	if rampSeen:
+		state = "ramp_warn"
+		print(state)
 		#ramp_warn()
-	#if diceSeen 
-		#state = "dice_track"
+	if targetSeen:
+		state = "dice_track"
+		print(state)
 		#dice_track()
-        
-
+	navigate_with_tofs()		
+		
+	
