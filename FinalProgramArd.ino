@@ -117,6 +117,7 @@ void loop() {
     //move forward, turn on brush
        motor1.drive(speed);
        motor2.drive(speed);
+       //spinnerbrush(50)
   }
   else if (msg == "ML0") {
     //Move left
@@ -133,7 +134,7 @@ void loop() {
 
     }
   else if (msg == "TNF") { 
-    //No dice found, as of now: Stop
+    //No dice found, as of now: ignore
     
    motor1.drive(speed);
    motor2.drive(speed);
@@ -143,6 +144,7 @@ void loop() {
 
    motor1.drive(-speed);
    motor2.drive(-speed);
+   delay(200);
     }
   else if (msg == "MF0") { 
     
