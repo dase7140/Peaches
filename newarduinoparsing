@@ -1,7 +1,7 @@
 #include <SparkFun_TB6612.h>
 #include <Servo.h>
 
-// -------------------- ULTRASONIC SETUP --------------------
+// -------------------- ULTRASONICS --------------------
 struct UltrasonicSensor {
   int echoPin;
   int trigPin;
@@ -42,7 +42,7 @@ long readUltrasonicMedian(int trigPin, int echoPin) {
 const int thresholdBlocked = 20;
 const int thresholdClear   = 25;
 
-// -------------------- MOTOR SETUP --------------------
+// -------------------- MOTORS --------------------
 #define BPWMA 41
 #define BAIN1 43
 #define BAIN2 45
@@ -54,44 +54,21 @@ const int thresholdClear   = 25;
 Motor motorL = Motor(BAIN1, BAIN2, BPWMA, 1, BSTBY);
 Motor motorR = Motor(BBIN1, BBIN2, BPWMB, 1, BSTBY);
 
-// -------------------- TRAY / BRUSH SETUP --------------------
-Servo trayServo;      // U or D
+// -------------------- TRAY / BRUSH --------------------
+Servo trayServo;
 const int trayPin = 7;
 
-const int brushPWM = BPWMA; // You already use this channel
+const int brushPWM = BPWMA; 
 const int brushIN1 = BAIN1;
 const int brushIN2 = BAIN2;
 
-// -------------------- SETUP --------------------
-void setup() {
-  Serial.begin(115200);
-
-  // Ultrasonic pins
-  for (int i = 0; i < numSensors; i++) {
-    pinMode(sensors[i].trigPin, OUTPUT);
-    pinMode(sensors[i].echoPin, INPUT);
-  }
-
-  // Tray servo
-  trayServo.attach(trayPin);
-
-  // Brush motor pins
-  pinMode(brushPWM, OUTPUT);
-  pinMode(brushIN1, OUTPUT);
-  pinMode(brushIN2, OUTPUT);
-
-  digitalWrite(BSTBY, HIGH); // enable motor driver
-}
-
-// -------------------- COMMAND HANDLING --------------------
 void setBrush(char brushCmd) {
   if (brushCmd == 'R') {
-    // reverse
     digitalWrite(brushIN1, HIGH);
     digitalWrite(brushIN2, LOW);
     analogWrite(brushPWM, 180);
   } else {
-    int s = brushCmd - '0'; // convert ascii to number
+    int s = brushCmd - '0';
     if (s == 0) {
       analogWrite(brushPWM, 0);
       digitalWrite(brushIN1, LOW);
@@ -99,82 +76,10 @@ void setBrush(char brushCmd) {
     } else {
       digitalWrite(brushIN1, HIGH);
       digitalWrite(brushIN2, LOW);
-      analogWrite(brushPWM, s * 28); // scale 1–9 → PWM
+      analogWrite(brushPWM, s * 28);
     }
   }
 }
 
 void setTray(char pos) {
   if (pos == 'U') trayServo.write(0);
-  else if (pos == 'D') trayServo.write(90);
-}
-
-void drive(char direction, int angle, int speed) {
-  int m = map(speed, 0, 99, 0, 255);
-
-  if (direction == 'B') {
-    motorL.drive(-m);
-    motorR.drive(-m);
-  }
-  else if (direction == 'L') {
-    motorL.drive(-m);
-    motorR.drive(m);
-  }
-  else if (direction == 'R') {
-    motorL.drive(m);
-    motorR.drive(-m);
-  }
-}
-
-// -------------------- LOOP --------------------
-void loop() {
-
-  // ----------- READ SENSOR DIAGNOSTIC REQUEST -----------
-  if (Serial.peek() == 'P') {  // PSD command
-    String msg = Serial.readStringUntil('\n');
-    if (msg == "PSD") {
-      String out = "";
-      for (int i = 0; i < numSensors; i++) {
-        long d = readUltrasonicMedian(sensors[i].trigPin, sensors[i].echoPin);
-        bool b = sensors[i].blocked;
-
-        if (d > 0 && d <= thresholdBlocked) b = true;
-        else if (d > thresholdClear) b = false;
-        sensors[i].blocked = b;
-
-        out += sensors[i].name;
-        out += ":";
-        out += (b ? "1" : "0");
-        if (i < numSensors - 1) out += " ";
-      }
-      Serial.println(out);
-    }
-    return;
-  }
-
-  // ----------- READ 7-BYTE PI COMMAND -----------
-  if (Serial.available() >= 7) {
-    char buf[8];
-    Serial.readBytes(buf, 7);
-    buf[7] = '\0';
-
-    char direction = buf[0];
-    char a1 = buf[1];
-    char a2 = buf[2];
-    char s1 = buf[3];
-    char s2 = buf[4];
-    char tray = buf[5];
-    char brush = buf[6];
-
-    // parse angle
-    int angle = (a1 == 'X' && a2 == 'X') ? -1 :
-                (a1 - '0') * 10 + (a2 - '0');
-
-    // parse speed
-    int speed = (s1 - '0') * 10 + (s2 - '0');
-
-    setTray(tray);
-    setBrush(brush);
-    drive(direction, angle, speed);
-  }
-}
