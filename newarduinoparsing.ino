@@ -187,6 +187,8 @@ void setup() {
 void loop() {
 
   static int CMD_LEN = 7;
+  char cmdBuf[8];
+  int cmdIndex = 0;
   while (Serial.available() > 0) {
     char c = Serial.read();
 
