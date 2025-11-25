@@ -220,40 +220,41 @@ void loop() {
   // ----------------------------
   // Build SENS packet (your format)
   // ----------------------------
-  String packet = "SENS ";
+  unsigned long now = millis();
+    if (now - lastSensorSend >= SENSOR_PERIOD) {
+        lastSensorSend = now;
 
-  // Ultrasonic
-  for (int i = 0; i < numSensors; i++) {
-    long d = readUltrasonic(sensors[i].trigPin, sensors[i].echoPin);
-    packet += sensors[i].name;
-    packet += "=";
-    packet += d;
-    packet += " ";
-  }
+        // Build packet using C strings to avoid heap fragmentation
+        char out[256];
+        int n = 0;
 
-  // IR sensors
-  for (uint8_t i = 0; i < 5; i++) {
-    tcaSelect(i);
+        n += snprintf(out + n, sizeof(out) - n, "SENS ");
 
-    VL53L0X_RangingMeasurementData_t m;
-    lox[i].rangingTest(&m, false);
+        // Ultrasonic
+        for (int i = 0; i < numSensors; i++) {
+            long d = readUltrasonic(sensors[i].trigPin, sensors[i].echoPin);
+            n += snprintf(out + n, sizeof(out) - n, "%s=%ld ",
+                          sensors[i].name, d);
+        }
 
-    long dist;
-    if (m.RangeStatus == 4) dist = -1;
-    else {
-      dist = m.RangeMilliMeter;
-      if (dist < 20 || dist > 2000) dist = -1;
+        // IR sensors
+        for (uint8_t i = 0; i < 5; i++) {
+            tcaSelect(i);
+
+            VL53L0X_RangingMeasurementData_t m;
+            lox[i].rangingTest(&m, false);
+
+            long dist;
+            if (m.RangeStatus == 4) dist = -1;
+            else {
+                dist = m.RangeMilliMeter;
+                if (dist < 20 || dist > 2000) dist = -1;
+            }
+
+            n += snprintf(out + n, sizeof(out) - n, "%s=%ld ",
+                          irNames[i], dist);
+        }
+
+        Serial.println(out);
     }
-
-    packet += irNames[i];
-    packet += "=";
-    packet += dist;
-    packet += " ";
-  }
-
-  // Send sensor packet
-  Serial.println(packet);
-  
-
-  delay(80);  // ~12.5 Hz
 }
