@@ -184,31 +184,38 @@ void setup() {
 // =============================================================
 // LOOP: continuous sensor data + command listening
 // =============================================================
+const int CMD_LEN = 7;
+
 void loop() {
+    static char cmdBuf[CMD_LEN + 1];
+    static int cmdIndex = 0;
 
-  static int CMD_LEN = 7;
-  char cmdBuf[8];
-  int cmdIndex = 0;
-  while (Serial.available() > 0) {
-    char c = Serial.read();
+    while (Serial.available()) {
+        char c = Serial.read();
 
-    if (c == '\n' || c == '\r')
-      continue;
+        if (c == '\n' || c == '\r')
+            continue;
 
-    cmdBuf[cmdIndex++] = c;
+        // Write byte safely
+        cmdBuf[cmdIndex++] = c;
 
-    if (cmdIndex == CMD_LEN) {
-      cmdBuf[CMD_LEN] = '\0';   // null-terminate
-      handleCommand(cmdBuf);
+        // If buffer is full, process
+        if (cmdIndex == CMD_LEN) {
+            cmdBuf[CMD_LEN] = '\0';
+            handleCommand(cmdBuf);
 
-      // --- SAFE DEBUG ---
-      Serial.print("<CMD:");
-      Serial.print(cmdBuf);
-      Serial.println(">");
+            Serial.print("CMD<:");
+            Serial.print(cmdBuf);
+            Serial.println(">");
 
-      cmdIndex = 0;
+            cmdIndex = 0;
+        }
+
+        // Prevent overflow on junk data
+        if (cmdIndex > CMD_LEN) {
+            cmdIndex = 0;
+        }
     }
-  }
 
   // ----------------------------
   // Build SENS packet (your format)
