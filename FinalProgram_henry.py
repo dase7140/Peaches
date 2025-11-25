@@ -113,7 +113,7 @@ def command_robot(direction, angle, speed, tray_position, brush_speed):
 	"""
     Build 7-character command string for Arduino.
 
-    direction : one-char: 'L','R','B'
+    direction : one-char: 'L','R','B' (left, right, backward)
     angle     : int 00–99 OR 'XX' string for in-place turn
     speed     : int 00–99 
     tray      : 'D' or 'U'
@@ -295,6 +295,9 @@ def main_loop():
 	Main loop: decide robot mode based on sensor data in robot_state.
 	"""
 	while True:
+		command_robot('L', 0, 99, 'D', 0)  # stop robot initially
+		time.sleep(1)  # wait a second before starting main loop
+	while False:
 		with state_lock:
 			# Copy current state for decision making
 			current_state = robot_state.copy()
