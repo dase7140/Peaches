@@ -1,0 +1,85 @@
+#include <SparkFun_TB6612.h>
+#include <Servo.h>
+
+// -------------------- ULTRASONICS --------------------
+struct UltrasonicSensor {
+  int echoPin;
+  int trigPin;
+  const char* name;
+  bool blocked;
+};
+
+UltrasonicSensor sensors[] = {
+  {35, 34, "FR", false},
+  {33, 32, "FL", false},
+  {31, 30, "R",  false},
+  {25, 24, "L",  false},
+  {23, 22, "B",  false}
+};
+
+const int numSensors = sizeof(sensors) / sizeof(sensors[0]);
+
+long readUltrasonic(int trigPin, int echoPin) {
+  digitalWrite(trigPin, LOW); delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH); delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  long duration = pulseIn(echoPin, HIGH, 30000);
+  return duration * 0.034 / 2;
+}
+
+long readUltrasonicMedian(int trigPin, int echoPin) {
+  long r[3];
+  for (int i = 0; i < 3; i++) {
+    r[i] = readUltrasonic(trigPin, echoPin);
+    delay(5);
+  }
+  for (int i = 0; i < 2; i++)
+    for (int j = i + 1; j < 3; j++)
+      if (r[j] < r[i]) { long t = r[i]; r[i] = r[j]; r[j] = t; }
+  return r[1];
+}
+
+const int thresholdBlocked = 20;
+const int thresholdClear   = 25;
+
+// -------------------- MOTORS --------------------
+#define BPWMA 41
+#define BAIN1 43
+#define BAIN2 45
+#define BSTBY 47
+#define BBIN1 49
+#define BBIN2 51
+#define BPWMB 53
+
+Motor motorL = Motor(BAIN1, BAIN2, BPWMA, 1, BSTBY);
+Motor motorR = Motor(BBIN1, BBIN2, BPWMB, 1, BSTBY);
+
+// -------------------- TRAY / BRUSH --------------------
+Servo trayServo;
+const int trayPin = 7;
+
+const int brushPWM = BPWMA; 
+const int brushIN1 = BAIN1;
+const int brushIN2 = BAIN2;
+
+void setBrush(char brushCmd) {
+  if (brushCmd == 'R') {
+    digitalWrite(brushIN1, HIGH);
+    digitalWrite(brushIN2, LOW);
+    analogWrite(brushPWM, 180);
+  } else {
+    int s = brushCmd - '0';
+    if (s == 0) {
+      analogWrite(brushPWM, 0);
+      digitalWrite(brushIN1, LOW);
+      digitalWrite(brushIN2, LOW);
+    } else {
+      digitalWrite(brushIN1, HIGH);
+      digitalWrite(brushIN2, LOW);
+      analogWrite(brushPWM, s * 28);
+    }
+  }
+}
+
+void setTray(char pos) {
+  if (pos == 'U') trayServo.write(0);
