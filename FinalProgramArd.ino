@@ -1,180 +1,346 @@
-#include <SparkFun_TB6612.h>
+// ##################################
+// ##### Inital Setup ###############
+// ##################################
+
+// =============================================================
+// Ultrasonic Sensor Setup
 
 struct UltrasonicSensor {
   int echoPin;
   int trigPin;
   const char* name;
   bool blocked; 
+
+  
+  float Distance(int trigPin, int echoPin) {
+
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+
+    float duration = pulseIn(echoPin, HIGH, 30000); // Timeout 30ms
+    float distance = duration * 0.034 / 2; // Convert to cm
+
+    return distance;
+  }
 };
 
 // List of sensors
 UltrasonicSensor sensors[] = {
-  {35, 34, "FR", false},
-  {33, 32, "FL", false},
-  {31, 30, "R",  false},
-  {25, 24, "L",  false},
-  {23, 22, "B",  false}
+  {28, 29, "L", false},
+  {30, 31, "R", false},
+  {32, 33, "FL", false},
+  {34, 35, "FR", false}
 };
 
-const int numSensors = sizeof(sensors) / sizeof(sensors[0]);
+#define numUSSensors 4
 
-//for the drive motors
-// Motor Driver 1
-// Motor Driver 2
-#define BPWMA 41
-#define BAIN1 43
-#define BAIN2 45
-#define BSTBY 47
-#define BBIN1 49
-#define BBIN2 51
-#define BPWMB 53
-
-const int offsetA = 1;
-const int offsetB = 1;
-const int offsetC = 1;
-
-Motor motor1 = Motor(BAIN1, BAIN2, BPWMA, offsetC, BSTBY);
-Motor motor2 = Motor(BBIN1, BBIN2, BPWMB, offsetC, BSTBY); //right
-
-void spinnerMotor(int motorSpeed){
- 
-  digitalWrite(BAIN1, HIGH);
-  digitalWrite(BAIN2, LOW);  
-  analogWrite(BPWMA, motorSpeed);
-  digitalWrite(BSTBY, HIGH);
-}
-const int threshold = 20;
-
-
-void setup() {
-  // put your setup code here, to run once:
-
- //pinModes for the drive motors
-  
-  //pinModes for the spinner motor
-  pinMode(BPWMA, OUTPUT);
-  pinMode(BAIN1, OUTPUT);
-  pinMode(BAIN2, OUTPUT);
-  pinMode(BSTBY, OUTPUT);
-  pinMode(BPWMB, OUTPUT);
-  pinMode(BBIN1, OUTPUT);
-  pinMode(BBIN2, OUTPUT);
-  
-  Serial.begin(115200);
-  //Serial.setTimeout(50);
-
-  //Sensors:
-    for (int i = 0; i < numSensors; i++) {
+void UltrasonicSensorSetup() {
+  // Ultrasonic Sensors
+  for (int i = 0; i < numUSSensors; i++) {
     pinMode(sensors[i].trigPin, OUTPUT);
     pinMode(sensors[i].echoPin, INPUT);
   }
-
-
 }
 
-//Function for ultrasonics
-long readUltrasonic(int trigPin, int echoPin) {
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-
-  long duration = pulseIn(echoPin, HIGH, 30000); // Timeout 30ms
-  long distance = duration * 0.034 / 2; // Convert to cm
-  return distance;
-}
-int speed = 150; //solution to make it slower: spike PWM then go slower
-
-const int thresholdBlocked = 20;  // when definitely blocked
-const int thresholdClear   = 25;
-
-long readUltrasonicMedian(int trigPin, int echoPin) {
-  long readings[3];
-  for (int i = 0; i < 3; i++) {
-    readings[i] = readUltrasonic(trigPin, echoPin);
-    delay(5);
+// NO MEAN RETURN 
+void ReadAllUSDistances(float distances[]) {
+  for (int i = 0; i < numUSSensors; i++) {
+    distances[i] = sensors[i].Distance(sensors[i].trigPin, sensors[i].echoPin);
   }
-  // simple sort to get median
-  for (int i = 0; i < 2; i++)
-    for (int j = i+1; j < 3; j++)
-      if (readings[j] < readings[i]) {
-        long tmp = readings[i];
-        readings[i] = readings[j];
-        readings[j] = tmp;
-      }
-  return readings[1]; // median
+}
+
+// =============================================================
+// Multiplexer and IR Sensor Setup - Adafruit VL53L0X - HiLetGo TCA9548A
+
+#include <Wire.h>
+#include <Adafruit_VL53L0X.h>
+
+Adafruit_VL53L0X lox[5];  // for up to 5 sensors
+
+#define TCAADDR 0x70
+#define numIRSensors 5
+
+void tcaSelect(uint8_t channel) {
+  if (channel > 7) return;
+    Wire.beginTransmission(TCAADDR);
+    Wire.write(1 << channel);
+    Wire.endTransmission();
+    delay(10);
+}
+
+void IRSensorSetup() {
+    Wire.begin();
+    Serial.println("Initializing multiple VL53L0X sensors...");
+
+    for (int i = 0; i < numIRSensors; i++) {
+      tcaSelect(i);
+        if (!lox[i].begin()) {
+          Serial.print("Failed to boot VL53L0X on channel ");
+          Serial.println(i);
+          while(1);
+        }
+      Serial.print("VL53L0X sensor initialized on channel ");
+      Serial.println(i);
+    }
+}
+
+void ReadAllIRDistances(int distances[]) {
+  for (int i = 0; i < numIRSensors; i++) {
+    tcaSelect(i);
+
+    VL53L0X_RangingMeasurementData_t measure;
+    lox[i].rangingTest(&measure, false);
+    distances[i] = measure.RangeMilliMeter;
+  }
+}
+
+
+// =============================================================
+// Drive Motor Setup - SparkFun TB6612FNG
+
+#include <SparkFun_TB6612.h>    // Sparkfun Motor Driver TB6612 Library
+
+// Drive Motor Driver Pins
+#define PWMA 41
+#define AIN2 43
+#define AIN1 45
+#define STBY 47
+#define BIN1 49
+#define BIN2 51
+#define PWMB 53
+
+const int offsetA = 1;
+const int offsetB = 1;
+
+const int speed = 255;
+
+Motor left_motor = Motor(AIN1, AIN2, PWMA, offsetA, STBY);
+Motor right_motor = Motor(BIN1, BIN2, PWMB, offsetB, STBY); 
+
+void DriveMotorSetup(){
+    brake(left_motor, right_motor); // Ensure motors are stopped at startup
+}
+
+// ============================================================
+// Brush Motor Setup - Pololu DRV8263H
+
+// Brush Motor Setup 
+// Brush Motor Driver Pins
+#define brush_IN1 7
+#define brush_IN2 6
+
+void BrushMotorSetup(){
+  pinMode(brush_IN1, OUTPUT);
+  pinMode(brush_IN2, OUTPUT);
+}
+
+// ============================================================
+// Tray Servo Setup - 20G Hobby Servo
+
+// Tray Servo Setup
+#include <Servo.h>   // Basic Arduino Servo Library
+
+// Servo Pins
+#define tray_servo_pin 9
+
+Servo tray_servo; 
+
+int init = 90;    // Initial position
+int down = 180;   // Lowered position
+int up = 0;       // Raised position
+
+void TrayServoSetup(){
+  tray_servo.attach(tray_servo_pin);
+  tray_servo.write(init); // Set to initial position
+  delay(500);
+}
+
+// =============================================================
+// Communications Setup
+
+void CommsSetup(){
+  Serial.begin(115200);
+  delay(1500); // Wait for serial to initialize
+} 
+
+// ##################################
+// ##### Combination Functions ######
+// ##################################
+
+void BrushMotorOn(){
+  // Lower Tray
+  tray_servo.write(down);
+  delay(2500);
+
+  // // Activate brush motor
+  // digitalWrite(brush_IN1, HIGH);
+  // digitalWrite(brush_IN2, LOW);  
+  // delay(500); 
+}
+
+void BrushMotorOff(){
+  // Raise Tray
+  tray_servo.write(up); 
+  delay(2500); 
+
+  // // Deactivate brush motor
+  // digitalWrite(brush_IN1, HIGH);
+  // digitalWrite(brush_IN2, HIGH);
+  // delay(500); 
+}
+
+
+// #############################################################
+// ##### MAIN PROGRAM ##########################################
+// #############################################################
+
+void setup() {
+  // Serial Communications
+  CommsSetup();
+  // Ultrasonic Sensors
+  UltrasonicSensorSetup();
+  // IR Sensors
+  IRSensorSetup();
+  // Drive Motors
+  DriveMotorSetup();
+  // Brush Motor
+  BrushMotorSetup();  
+  // Tray Servo
+  TrayServoSetup();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
 
   if (Serial.available() > 0){
-  String msg = Serial.readStringUntil('\n');
-   
-  if (msg == "MFD") { 
-    
-    //move forward, turn on brush
-       motor1.drive(speed);
-       motor2.drive(speed);
-       //spinnerbrush(50)
-  }
-  else if (msg == "ML0") {
+    String msg = Serial.readStringUntil('\n');
+
+    //Move forward
+    if (msg == "MFD") {
+      forward(left_motor, right_motor, speed);
+    }
     //Move left
-
-   motor1.drive(speed);
-   motor2.drive(-speed);
-
+    else if (msg == "ML0") { 
+      left(left_motor, right_motor, speed);
     }
-  else if (msg == "MR0") {
     //Move right
-
-   motor1.drive(-speed);
-   motor2.drive(speed);
-
+    else if (msg == "MR0") {
+      right(left_motor, right_motor, speed);
     }
-  else if (msg == "TNF") { 
-    //No dice found, as of now: ignore
-    
-   motor1.drive(speed);
-   motor2.drive(speed);
-
+    //Move backward
+    else if (msg == "MB0") {
+      back(left_motor, right_motor, speed);
     }
-  else if (msg == "MB0") { 
-
-   motor1.drive(-speed);
-   motor2.drive(-speed);
-   delay(200);
+    //Stop moving
+    else if (msg == "MF0") {
+      brake(left_motor, right_motor);
     }
-  else if (msg == "MF0") { 
-    
-    //for testing: just stay stationary
-       motor1.drive(speed);
-       motor2.drive(speed);
-  }
-  else if (msg == "PSD") {
-    String output = "";
-
-      for (int i = 0; i < numSensors; i++) {
-        long distance = readUltrasonicMedian(sensors[i].trigPin, sensors[i].echoPin);
-        bool blocked = sensors[i].blocked;
-
-        // Hysteresis logic
-        if (distance > 0 && distance <= thresholdBlocked) {
-          blocked = true;
-        } else if (distance > thresholdClear) {
-          blocked = false;
+    // Activate Brush Motor
+    else if (msg == "ABM") {
+      BrushMotorOn();
+    }
+    // Deactivate Brush Motor
+    else if (msg == "DBM") {
+      BrushMotorOff();
+    }
+    // Read US Sensor Distances
+    else if (msg == "RUS") {
+      float US_distances[numUSSensors];
+      ReadAllUSDistances(US_distances);
+      Serial.print("US Distances: ");
+        for (int i = 0; i < numUSSensors; i++) {
+          Serial.print(sensors[i].name);
+          Serial.print("=");
+          Serial.print(US_distances[i]);
+          if (i < numUSSensors - 1){
+            Serial.print(", ");
+          }
+          Serial.println(); 
         }
-        sensors[i].blocked = blocked; // update stored state
-
-        output += String(sensors[i].name) + ":" + (blocked ? "1" : "0");
-        if (i < numSensors - 1) output += " ";
-      }
-
-      Serial.println(output); // send dictionary string
-      delay(50);
     }
+    // Read IR Sensor Distances
+    else if (msg == "RIS") {
+      int IR_distances[numIRSensors];
+      ReadAllIRDistances(IR_distances);
+      Serial.println("IR Distances: ");
+        for (int i = 0; i < numIRSensors; i++) {
+          Serial.print(i);
+          Serial.print("=");
+          Serial.println(IR_distances[i]);
+          Serial.println(); 
+        }
+    }
+    else {
+      Serial.println("Unknown Command");
+    }
+  }
+}
 
 
-}
-}
+
+// void loop() {
+
+//   if (Serial.available() > 0){
+
+//     String msg = Serial.readStringUntil('\n');
+   
+//     if (msg == "MFD") { 
+//       //Move forward
+//       forward(left_motor, right_motor, speed);
+//     }
+
+//     else if (msg == "ML0") {
+//       //Move left
+//       left(left_motor, right_motor, speed);
+//     }
+
+//     else if (msg == "MR0") {
+//       //Move right
+//       right(left_motor, right_motor, speed);
+//     }
+
+//     else if (msg == "MB0") { 
+//       //Move backward
+//       back(left_motor, right_motor, speed);
+//     }
+
+//     else if (msg == "TNF") { 
+//       // No dice found, as of now: ignore
+//     }
+
+//     else if (msg == "MF0") { 
+//       //Stop moving
+//       brake(left_motor, right_motor);
+//     }
+
+//     else if (msg == "PSD") {
+
+//       String output = "";
+
+//       for (int i = 0; i < numUSSensors; i++) {
+//         long distance = readUltrasonicMedian(sensors[i].trigPin, sensors[i].echoPin);
+//         bool blocked = sensors[i].blocked;
+
+//         // Hysteresis logic
+//         if (distance > 0 && distance <= thresholdBlocked) {
+//           blocked = true;
+//         } 
+        
+//         else if (distance > thresholdClear) {
+//           blocked = false;
+//         }
+
+//         sensors[i].blocked = blocked; // update stored state
+
+//         output += String(sensors[i].name) + ":" + (blocked ? "1" : "0");
+        
+//         if (i < numUSSensors - 1) output += " ";
+//       }
+
+//       Serial.println(output); // send dictionary string
+//       delay(50);
+//     }
+//   }
+// }
