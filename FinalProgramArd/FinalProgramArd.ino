@@ -60,6 +60,12 @@ void ReadAllUSDistances(float distances[]) {
 
 Adafruit_VL53L0X lox[5];  // for up to 5 sensors
 
+// Front Left - 2
+// Front Right - 1
+// Left - 0
+// Right - 3  
+// Back - 4
+
 #define TCAADDR 0x70
 #define numIRSensors 5
 
@@ -192,6 +198,41 @@ void BrushMotorOff(){
 }
 
 
+// Front Left - 2
+// Front Right - 1
+// Left - 0
+// Right - 3  
+// Back - 4
+void WallCheck(){
+  int wallCheckLimit = 80;
+  int IR_distances[numIRSensors];
+  ReadAllIRDistances(IR_distances);
+  for (int i = 0; i < numIRSensors; i++) {
+    if(IR_distances[i] < wallCheckLimit) {
+      if (i == 0) { // Left Sensor
+        Serial.println("Left Triggered");
+        brake(left_motor, right_motor); 
+      }
+      else if (i == 1) { // Front Right Sensor
+        Serial.println("Front Right Triggered");
+        brake(left_motor, right_motor);
+      }
+      else if (i == 2) { // Front Left Sensor
+        Serial.println("Front Left Triggered");
+        brake(left_motor, right_motor);
+      }
+      else if (i == 3) { // Right Sensor
+        Serial.println("Right Triggered");
+        brake(left_motor, right_motor);
+      }
+      else if (i == 4) { // Back Sensor
+        Serial.println("Back Triggered");
+        brake(left_motor, right_motor);
+      }
+    }
+  }
+}
+
 // #############################################################
 // ##### MAIN PROGRAM ##########################################
 // #############################################################
@@ -215,6 +256,8 @@ void setup() {
 
 void loop() {
 
+  WallCheck();
+  
   if (Serial.available() > 0){
     String msg = Serial.readStringUntil('\n');
 
