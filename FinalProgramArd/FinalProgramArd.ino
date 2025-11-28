@@ -233,6 +233,73 @@ void WallCheck(){
   }
 }
 
+bool isDrivingBlind = false;
+
+void DriveBlind(){
+  int wallCheckLimit = 100;      // Distance to stop at (mm)
+  int IR_distances[numIRSensors];
+  
+  ReadAllIRDistances(IR_distances);
+
+  // Sensor Mapping Reminder:
+  // Left - 0, Front Right - 1, Front Left - 2, Right - 3, Back - 4
+
+  // 1. CHECK FRONT (Emergency Stop & Turn)
+  if (IR_distances[2] < wallCheckLimit || IR_distances[1] < wallCheckLimit) {
+    Serial.println("Front Obstacle! Backing up...");
+    
+    // Stop
+    brake(left_motor, right_motor);
+    delay(200);
+
+    // Back up
+    back(left_motor, right_motor, speed);
+    delay(500); 
+    brake(left_motor, right_motor);
+    delay(200);
+
+    // Read sensors again to find the open path
+    ReadAllIRDistances(IR_distances);
+    int leftSpace = IR_distances[0];
+    int rightSpace = IR_distances[3];
+
+    if (leftSpace > rightSpace) {
+      Serial.println("Turning Left (More Space)");
+      // Turn Left in place
+      left_motor.drive(speed);
+      right_motor.drive(-speed);
+      delay(600); // Adjust this delay to change turn angle
+    } else {
+      Serial.println("Turning Right (More Space)");
+      // Turn Right in place
+      left_motor.drive(-speed);
+      right_motor.drive(speed);
+      delay(600); // Adjust this delay to change turn angle
+    }
+    
+    brake(left_motor, right_motor);
+    delay(100); // Brief pause before resuming
+  }
+  // 2. CHECK SIDES (Course Correction)
+  else if (IR_distances[0] < wallCheckLimit) {
+    // Left wall is too close -> Steer Right
+    // (Keep Left motor fast, slow down Right motor)
+    left_motor.drive(speed);
+    right_motor.drive(0);
+  }
+  else if (IR_distances[3] < wallCheckLimit) {
+    // Right wall is too close -> Steer Left
+    // (Slow down Left motor, keep Right motor fast)
+    left_motor.drive(0);
+    right_motor.drive(speed);
+  }
+  // 3. PATH CLEAR
+  else {
+    // Drive straight
+    forward(left_motor, right_motor, speed);
+  }
+}
+
 // #############################################################
 // ##### MAIN PROGRAM ##########################################
 // #############################################################
@@ -256,10 +323,15 @@ void setup() {
 
 void loop() {
 
-  WallCheck();
-  
+  if  (isDrivingBlind){
+    DriveBlind();
+  } else {
+    WallCheck();
+  }
+
   if (Serial.available() > 0){
     String msg = Serial.readStringUntil('\n');
+    isDrivingBlind = false;
 
     //Move forward
     if (msg == "MFD") {
@@ -290,6 +362,10 @@ void loop() {
     // Deactivate Brush Motor
     else if (msg == "DBM") {
       BrushMotorOff();
+    }
+    // Drive Blind using only IR Sensors
+    else if (msg == "DBI") {
+      isDrivingBlind = true;
     }
     // Read US Sensor Distances
     else if (msg == "RUS") {
