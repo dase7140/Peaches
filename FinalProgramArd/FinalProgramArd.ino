@@ -110,18 +110,18 @@ void ReadAllIRDistances(int distances[]) {
 #include <SparkFun_TB6612.h>    // Sparkfun Motor Driver TB6612 Library
 
 // Drive Motor Driver Pins
-#define PWMA 41
+#define PWMA 5
 #define AIN2 43
 #define AIN1 45
 #define STBY 47
 #define BIN1 49
 #define BIN2 51
-#define PWMB 53
+#define PWMB 4
 
 const int offsetA = 1;
 const int offsetB = -1;
 
-const int speed = 255;
+int speed = 255;
 
 Motor left_motor = Motor(AIN1, AIN2, PWMA, offsetA, STBY);
 Motor right_motor = Motor(BIN1, BIN2, PWMB, offsetB, STBY); 
@@ -233,11 +233,15 @@ void WallCheck(){
   }
 }
 
+
+
 bool isDrivingBlind = false;
 
 void DriveBlind(){
   int wallCheckLimit = 100;      // Distance to stop at (mm)
   int IR_distances[numIRSensors];
+  int drive_speed = 150;
+  int turn_speed = 100;
   
   ReadAllIRDistances(IR_distances);
 
@@ -253,7 +257,7 @@ void DriveBlind(){
     delay(200);
 
     // Back up
-    back(left_motor, right_motor, speed);
+    back(left_motor, right_motor, turn_speed);
     delay(500); 
     brake(left_motor, right_motor);
     delay(200);
@@ -266,14 +270,14 @@ void DriveBlind(){
     if (leftSpace > rightSpace) {
       Serial.println("Turning Left (More Space)");
       // Turn Left in place
-      left_motor.drive(speed);
-      right_motor.drive(-speed);
+      left_motor.drive(turn_speed);
+      right_motor.drive(-turn_speed);
       delay(600); // Adjust this delay to change turn angle
     } else {
       Serial.println("Turning Right (More Space)");
       // Turn Right in place
-      left_motor.drive(-speed);
-      right_motor.drive(speed);
+      left_motor.drive(-turn_speed);
+      right_motor.drive(turn_speed);
       delay(600); // Adjust this delay to change turn angle
     }
     
@@ -284,19 +288,19 @@ void DriveBlind(){
   else if (IR_distances[0] < wallCheckLimit) {
     // Left wall is too close -> Steer Right
     // (Keep Left motor fast, slow down Right motor)
-    left_motor.drive(speed);
-    right_motor.drive(0);
+    left_motor.drive(drive_speed);
+    right_motor.drive(drive_speed / 2);
   }
   else if (IR_distances[3] < wallCheckLimit) {
     // Right wall is too close -> Steer Left
     // (Slow down Left motor, keep Right motor fast)
-    left_motor.drive(0);
-    right_motor.drive(speed);
+    left_motor.drive(drive_speed / 2);
+    right_motor.drive(drive_speed);
   }
   // 3. PATH CLEAR
   else {
     // Drive straight
-    forward(left_motor, right_motor, speed);
+    forward(left_motor, right_motor, drive_speed);
   }
 }
 
