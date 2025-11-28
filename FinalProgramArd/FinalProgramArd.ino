@@ -113,7 +113,7 @@ void ReadAllIRDistances(int distances[]) {
 #define PWMB 53
 
 const int offsetA = 1;
-const int offsetB = 1;
+const int offsetB = -1;
 
 const int speed = 255;
 
@@ -148,13 +148,13 @@ void BrushMotorSetup(){
 
 Servo tray_servo; 
 
-int init = 90;    // Initial position
-int down = 180;   // Lowered position
-int up = 0;       // Raised position
+int start_pos = 120;    // Initial position
+int down = 90;   // Lowered position
+int up = 180;       // Raised position
 
 void TrayServoSetup(){
   tray_servo.attach(tray_servo_pin);
-  tray_servo.write(init); // Set to initial position
+  tray_servo.write(start_pos); // Set to initial position
   delay(500);
 }
 
@@ -173,23 +173,22 @@ void CommsSetup(){
 void BrushMotorOn(){
   // Lower Tray
   tray_servo.write(down);
-  delay(2500);
+  delay(500);
 
-  // // Activate brush motor
-  // digitalWrite(brush_IN1, HIGH);
-  // digitalWrite(brush_IN2, LOW);  
-  // delay(500); 
+   // Activate brush motor
+   digitalWrite(brush_IN1, HIGH);
+   digitalWrite(brush_IN2, LOW);
 }
 
 void BrushMotorOff(){
+
+  // Deactivate brush motor
+  digitalWrite(brush_IN1, HIGH);
+  digitalWrite(brush_IN2, HIGH);
+  delay(2000); 
+     
   // Raise Tray
   tray_servo.write(up); 
-  delay(2500); 
-
-  // // Deactivate brush motor
-  // digitalWrite(brush_IN1, HIGH);
-  // digitalWrite(brush_IN2, HIGH);
-  // delay(500); 
 }
 
 
@@ -210,6 +209,8 @@ void setup() {
   BrushMotorSetup();  
   // Tray Servo
   TrayServoSetup();
+
+  Serial.println("Setup Complete! ready to recieve inputs");
 }
 
 void loop() {
@@ -223,11 +224,13 @@ void loop() {
     }
     //Move left
     else if (msg == "ML0") { 
-      left(left_motor, right_motor, speed);
+      left_motor.drive(speed);
+      right_motor.drive(-speed);
     }
     //Move right
     else if (msg == "MR0") {
-      right(left_motor, right_motor, speed);
+      left_motor.drive(-speed);
+      right_motor.drive(speed);
     }
     //Move backward
     else if (msg == "MB0") {
@@ -249,7 +252,7 @@ void loop() {
     else if (msg == "RUS") {
       float US_distances[numUSSensors];
       ReadAllUSDistances(US_distances);
-      Serial.print("US Distances: ");
+      Serial.println("US Distances: ");
         for (int i = 0; i < numUSSensors; i++) {
           Serial.print(sensors[i].name);
           Serial.print("=");
