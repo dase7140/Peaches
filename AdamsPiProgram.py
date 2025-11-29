@@ -72,9 +72,6 @@ def yellow_mask(hsv_image):
 def detect_yellow_mass(img, mask, area_threshold=1000):
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cv2.drawContours(img, contours, -1, (255, 0, 0), 3)
-    # cv2.imshow("Contours", img)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
     # Check for large yellow masses
     for contour in contours:
         area = cv2.contourArea(contour)
@@ -90,13 +87,13 @@ def process_image(image):
     yellow_detected = detect_yellow_mass(image, mask)
     return yellow_detected
 
+# Main driving function
 def drive():
     while True:
         img = load_image_from_path('RaceCoursePhotos\photo_2025-11-26T14-11-35.034363.jpg')
         yellow_detected = process_image(img)
 
         if yellow_detected:
-            # Drive IR
             pi_2_ard("DBI")
         else:
             search_for_yellow()
@@ -110,6 +107,20 @@ def search_for_yellow():
             pi_2_ard("DBI")
         else: 
             pi_2_ard("YLL")
+
+def wait_for_start():
+    while True:
+        try:
+            cmd = input('Type "Start" to begin, or "EXIT" to quit: ').strip()
+        except EOFError:
+            cmd = "EXIT"
+        if cmd.upper() == "EXIT":
+            print("Exiting program.")
+            return False
+        if cmd.strip().lower() == "start":
+            print("Starting...")
+            return True
+        print('Not started. Please type "Start" or "EXIT".')
 
 def UserControl():
     while True:
@@ -125,11 +136,14 @@ def UserControl():
 
 def main():
 
+    if not wait_for_start():
+        return
+    
     reader = threading.Thread(target = serial_reader, daemon=True)
     reader.start()
 
     #UserControl()
-    
+    drive();
 
 if __name__ == "__main__":
     main()
