@@ -1,19 +1,21 @@
 from picamera2 import Picamera2
-from picamera2.encoders import JpegEncoder
-from picamera2.outputs import FileOutput
-import time
-from datetime import datetime
+import cv2
 
+# Initialize PiCamera2
 picam2 = Picamera2()
-
-# Configure the camera for still capture
-config = picam2.create_still_configuration()
+config = picam2.create_preview_configuration(main={"size": (640, 480)})
 picam2.configure(config)
-
 picam2.start()
-time.sleep(1)  # give the camera time to adjust
 
-picam2.capture_file(f"/home/peach/RaceCoursePhotos/photo_{datetime.now().isoformat()}.jpg")
+# Capture the image into a variable (numpy array)
+# This variable 'image_data' now holds the picture
+image_data = picam2.capture_array()
 
-print("Photo saved as photo.jpg")
+print(f"Image captured!")
 
+# Display the image
+cv2.imshow("Captured Image", image_data)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+picam2.stop()
