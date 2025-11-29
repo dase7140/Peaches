@@ -346,10 +346,16 @@ void loop() {
 
   if (Serial.available() > 0){
     String msg = Serial.readStringUntil('\n');
+    msg.trim(); // Remove any leading/trailing whitespace
+
     isDrivingBlind = false;
 
+    // Ignore empty messages
+    if (msg.length() == 0){
+      return; 
+    }
     //Move forward
-    if (msg == "MFD") {
+    else if (msg == "MFD") {
       forward(left_motor, right_motor, speed);
     }
     //Move left
@@ -419,7 +425,7 @@ void loop() {
         }
     }
     else {
-      Serial.println("Unknown Command");
+      Serial.println("Arduino Recieved Unknown Command");
       isDrivingBlind = false;
 
     }

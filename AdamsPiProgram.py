@@ -6,7 +6,7 @@ import threading
 import sys 
 
 # Serial Communication Setup
-port = "/dev/tty/ACM0"      # Arduino port on Raspberry Pi
+port = "/dev/ttyACM0"      # Arduino port on Raspberry Pi
 ser = serial.Serial(port, 115200, timeout=1) # establish serial connection
 time.sleep(2)               # wait for the serial connection to initialize
 ser.reset_input_buffer()    # clear input buffer to start fresh
@@ -114,6 +114,7 @@ def main():
             print("Exiting program.")
             break
         pi_2_ard(command)
+        time.sleep(0.05)  # Small delay to avoid overwhelming the serial buffer
 
 if __name__ == "__main__":
     main()
