@@ -331,7 +331,7 @@ void setup() {
   // Serial Communications
   CommsSetup();
   // Ultrasonic Sensors
-  UltrasonicSensorSetup();
+  //UltrasonicSensorSetup();
   // IR Sensors
   IRSensorSetup();
   // Drive Motors
