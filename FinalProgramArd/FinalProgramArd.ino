@@ -373,11 +373,11 @@ void loop() {
     }
     //Move left
     else if (msg == "ML0") { 
-      turnLeft();
+      turnLeft(speed);
     }
     //Move right
     else if (msg == "MR0") {
-      turnRight();
+      turnRight(speed);
     }
     //Move backward
     else if (msg == "MB0") {
