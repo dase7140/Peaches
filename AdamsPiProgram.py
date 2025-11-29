@@ -27,9 +27,9 @@ yellow_detected = False
 def capture_image():
     # Capture the image into a variable (numpy array)
     image_data = picam.capture_array()
-    cv2.imshow("Captured Image", image_data)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow("Captured Image", image_data)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
     return image_data
 
 # Functions for Serial Communication
@@ -165,8 +165,8 @@ def main():
     reader.start()
 
     #UserControl()
-    #drive()
-    capture_image()
+    drive()
+    # capture_image()
 
 if __name__ == "__main__":
     main()
