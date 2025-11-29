@@ -5,52 +5,52 @@
 // =============================================================
 // Ultrasonic Sensor Setup
 
-struct UltrasonicSensor {
-  int echoPin;
-  int trigPin;
-  const char* name;
-  bool blocked; 
+// struct UltrasonicSensor {
+//   int echoPin;
+//   int trigPin;
+//   const char* name;
+//   bool blocked; 
 
   
-  float Distance(int trigPin, int echoPin) {
+//   float Distance(int trigPin, int echoPin) {
 
-    digitalWrite(trigPin, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
+//     digitalWrite(trigPin, LOW);
+//     delayMicroseconds(2);
+//     digitalWrite(trigPin, HIGH);
+//     delayMicroseconds(10);
+//     digitalWrite(trigPin, LOW);
 
-    float duration = pulseIn(echoPin, HIGH, 30000); // Timeout 30ms
-    float distance = duration * 0.034 / 2; // Convert to cm
+//     float duration = pulseIn(echoPin, HIGH, 30000); // Timeout 30ms
+//     float distance = duration * 0.034 / 2; // Convert to cm
 
-    return distance;
-  }
-};
+//     return distance;
+//   }
+// };
 
-// List of sensors
-UltrasonicSensor sensors[] = {
-  {28, 29, "L", false},
-  {30, 31, "R", false},
-  {32, 33, "FL", false},
-  {34, 35, "FR", false}
-};
+// // List of sensors
+// UltrasonicSensor sensors[] = {
+//   {28, 29, "L", false},
+//   {30, 31, "R", false},
+//   {32, 33, "FL", false},
+//   {34, 35, "FR", false}
+// };
 
-#define numUSSensors 4
+// #define numUSSensors 4
 
-void UltrasonicSensorSetup() {
-  // Ultrasonic Sensors
-  for (int i = 0; i < numUSSensors; i++) {
-    pinMode(sensors[i].trigPin, OUTPUT);
-    pinMode(sensors[i].echoPin, INPUT);
-  }
-}
+// void UltrasonicSensorSetup() {
+//   // Ultrasonic Sensors
+//   for (int i = 0; i < numUSSensors; i++) {
+//     pinMode(sensors[i].trigPin, OUTPUT);
+//     pinMode(sensors[i].echoPin, INPUT);
+//   }
+// }
 
-// NO MEAN RETURN 
-void ReadAllUSDistances(float distances[]) {
-  for (int i = 0; i < numUSSensors; i++) {
-    distances[i] = sensors[i].Distance(sensors[i].trigPin, sensors[i].echoPin);
-  }
-}
+// // NO MEAN RETURN 
+// void ReadAllUSDistances(float distances[]) {
+//   for (int i = 0; i < numUSSensors; i++) {
+//     distances[i] = sensors[i].Distance(sensors[i].trigPin, sensors[i].echoPin);
+//   }
+// }
 
 // =============================================================
 // Multiplexer and IR Sensor Setup - Adafruit VL53L0X - HiLetGo TCA9548A
@@ -408,21 +408,21 @@ void loop() {
       RaiseTray();
     }
 
-    // Read US Sensor Distances
-    else if (msg == "RUS") {
-      float US_distances[numUSSensors];
-      ReadAllUSDistances(US_distances);
-      Serial.println("US Distances: ");
-        for (int i = 0; i < numUSSensors; i++) {
-          Serial.print(sensors[i].name);
-          Serial.print("=");
-          Serial.print(US_distances[i]);
-          if (i < numUSSensors - 1){
-            Serial.print(", ");
-          }
-          Serial.println(); 
-        }
-    }
+    // // Read US Sensor Distances
+    // else if (msg == "RUS") {
+    //   float US_distances[numUSSensors];
+    //   ReadAllUSDistances(US_distances);
+    //   Serial.println("US Distances: ");
+    //     for (int i = 0; i < numUSSensors; i++) {
+    //       Serial.print(sensors[i].name);
+    //       Serial.print("=");
+    //       Serial.print(US_distances[i]);
+    //       if (i < numUSSensors - 1){
+    //         Serial.print(", ");
+    //       }
+    //       Serial.println(); 
+    //     }
+    // }
     // Read IR Sensor Distances
     else if (msg == "RIS") {
       int IR_distances[numIRSensors];
