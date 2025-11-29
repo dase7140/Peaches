@@ -382,6 +382,15 @@ void loop() {
     else if (msg == "DBI") {
       isDrivingBlind = true;
     }
+    // Lower Tray
+    else if (msg == "LTY") {
+      LowerTray();
+    }
+    // Raise Tray
+    else if (msg == "RTY") {
+      RaiseTray();
+    }
+
     // Read US Sensor Distances
     else if (msg == "RUS") {
       float US_distances[numUSSensors];
