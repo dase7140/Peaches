@@ -163,6 +163,14 @@ void TrayServoSetup(){
   delay(500);
 }
 
+void LowerTray(){
+  tray_servo.write(down);
+}
+
+void RaiseTray(){
+  tray_servo.write(up);
+}
+
 // =============================================================
 // Communications Setup
 
@@ -177,7 +185,7 @@ void CommsSetup(){
 
 void BrushMotorOn(){
   // Lower Tray
-  tray_servo.write(down);
+  LowerTray();
   delay(500);
 
    // Activate brush motor
@@ -193,8 +201,10 @@ void BrushMotorOff(){
   delay(1000); 
      
   // Raise Tray
-  tray_servo.write(up); 
+  RaiseTray();
 }
+
+
 
 
 // Front Left - 2
