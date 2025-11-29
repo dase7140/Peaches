@@ -4,6 +4,10 @@ import serial
 import time
 import threading
 import sys 
+from picamera2 import Picamera2
+
+
+
 
 # Serial Communication Setup
 port = "/dev/ttyACM0"      # Arduino port on Raspberry Pi
@@ -11,7 +15,22 @@ ser = serial.Serial(port, 115200, timeout=1) # establish serial connection
 time.sleep(2)               # wait for the serial connection to initialize
 ser.reset_input_buffer()    # clear input buffer to start fresh
 ser.reset_output_buffer()   # clear output buffer to start fresh
+
+# Initalize PiCamera2
+picam = Picamera2()
+config = picam.create_preview_configuration(main={"size": (640, 480)})
+picam.configure(config)
+picam.start()
+
 yellow_detected = False
+
+def capture_image():
+    # Capture the image into a variable (numpy array)
+    image_data = picam.capture_array()
+    cv2.imshow("Captured Image", image_data)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    return image_data
 
 # Functions for Serial Communication
 # Send command from Pi to Arduino
@@ -87,13 +106,12 @@ def process_image(image):
     yellow_detected = detect_yellow_mass(image, mask)
     return yellow_detected
 
-
-
 # Search for yellow line
 def search_for_yellow():
     global yellow_detected
     while yellow_detected == False:
-        img = load_image_from_path('RaceCoursePhotos/photo_2025-11-26T15-02-12.033227.jpg')
+        #img = load_image_from_path('RaceCoursePhotos/photo_2025-11-26T15-02-12.033227.jpg')
+        img = capture_image()
         yellow_detected = process_image(img)
         if yellow_detected:
             pi_2_ard("DBI")
@@ -129,7 +147,8 @@ def UserControl():
 def drive():
     global yellow_detected
     while True:
-        img = load_image_from_path('RaceCoursePhotos/photo_2025-11-26T15-02-12.033227.jpg')
+        #img = load_image_from_path('RaceCoursePhotos/photo_2025-11-26T15-02-12.033227.jpg')
+        img = capture_image()
         yellow_detected = process_image(img)
 
         if yellow_detected:
@@ -146,7 +165,8 @@ def main():
     reader.start()
 
     #UserControl()
-    drive()
+    #drive()
+    capture_image()
 
 if __name__ == "__main__":
     main()
