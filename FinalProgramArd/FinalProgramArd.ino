@@ -86,7 +86,6 @@ void IRSensorSetup() {
         if (!lox[i].begin()) {
           Serial.print("Failed to boot VL53L0X on channel ");
           Serial.println(i);
-          while(1);
         }
       Serial.print("VL53L0X sensor initialized on channel ");
       Serial.println(i);
@@ -154,9 +153,9 @@ void BrushMotorSetup(){
 
 Servo tray_servo; 
 
-int start_pos = 120;    // Initial position
+int start_pos = 90;    // Initial position
 int down = 90;   // Lowered position
-int up = 180;       // Raised position
+int up = 165;       // Raised position
 
 void TrayServoSetup(){
   tray_servo.attach(tray_servo_pin);
@@ -191,7 +190,7 @@ void BrushMotorOff(){
   // Deactivate brush motor
   digitalWrite(brush_IN1, HIGH);
   digitalWrite(brush_IN2, HIGH);
-  delay(2000); 
+  delay(1000); 
      
   // Raise Tray
   tray_servo.write(up); 
@@ -238,10 +237,11 @@ void WallCheck(){
 bool isDrivingBlind = false;
 
 void DriveBlind(){
-  int wallCheckLimit = 100;      // Distance to stop at (mm)
+  int wallCheckLimit = 150;      // Distance to stop at (mm)
+  int frontCheckLimit = 350;
   int IR_distances[numIRSensors];
-  int drive_speed = 150;
-  int turn_speed = 100;
+  int drive_speed = 180;
+  int turn_speed = 150;
   
   ReadAllIRDistances(IR_distances);
 
@@ -249,7 +249,7 @@ void DriveBlind(){
   // Left - 0, Front Right - 1, Front Left - 2, Right - 3, Back - 4
 
   // 1. CHECK FRONT (Emergency Stop & Turn)
-  if (IR_distances[2] < wallCheckLimit || IR_distances[1] < wallCheckLimit) {
+  if (IR_distances[2] < frontCheckLimit || IR_distances[1] < frontCheckLimit) {
     Serial.println("Front Obstacle! Backing up...");
     
     // Stop
@@ -270,15 +270,15 @@ void DriveBlind(){
     if (leftSpace > rightSpace) {
       Serial.println("Turning Left (More Space)");
       // Turn Left in place
-      left_motor.drive(turn_speed);
-      right_motor.drive(-turn_speed);
-      delay(600); // Adjust this delay to change turn angle
+      left_motor.drive(-turn_speed);
+      right_motor.drive(turn_speed);
+      delay(800); // Adjust this delay to change turn angle
     } else {
       Serial.println("Turning Right (More Space)");
       // Turn Right in place
-      left_motor.drive(-turn_speed);
-      right_motor.drive(turn_speed);
-      delay(600); // Adjust this delay to change turn angle
+      left_motor.drive(turn_speed);
+      right_motor.drive(-turn_speed);
+      delay(800); // Adjust this delay to change turn angle
     }
     
     brake(left_motor, right_motor);
@@ -323,6 +323,7 @@ void setup() {
   TrayServoSetup();
 
   Serial.println("Setup Complete! ready to recieve inputs");
+  BrushMotorOff();
 }
 
 void loop() {
@@ -400,6 +401,8 @@ void loop() {
     }
     else {
       Serial.println("Unknown Command");
+      isDrivingBlind = false;
+
     }
   }
 }
