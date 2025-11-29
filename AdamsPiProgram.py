@@ -150,6 +150,7 @@ def drive():
         #img = load_image_from_path('RaceCoursePhotos/photo_2025-11-26T15-02-12.033227.jpg')
         img = capture_image()
         yellow_detected = process_image(img)
+        print(f"Yellow Detected: {yellow_detected}")
 
         if yellow_detected:
             pi_2_ard("DBI")
