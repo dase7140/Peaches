@@ -83,8 +83,8 @@ def convert_bgr_to_hsv(image):
 
 # Create a mask for yellow color in the HSV image
 def yellow_mask(hsv_image):
-    lower_yellow = np.array([0, 100, 135])
-    upper_yellow = np.array([95, 255, 255])
+    lower_yellow = np.array([70, 100, 135])
+    upper_yellow = np.array([120, 255, 255])
     mask = cv2.inRange(hsv_image, lower_yellow, upper_yellow)
     return mask
 
