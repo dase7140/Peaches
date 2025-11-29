@@ -153,7 +153,8 @@ def drive():
         print(f"Yellow Detected: {yellow_detected}")
 
         if yellow_detected:
-            pi_2_ard("DBI")
+            pi_2_ard('DBI')
+
         else:
             search_for_yellow()
 
