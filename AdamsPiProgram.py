@@ -2,33 +2,52 @@ import cv2
 import numpy as np
 import serial
 import time
+import threading
+import sys 
 
-port = "/dev/tty/ACM0"
-ser = serial.Serial(port, 115200, timeout=1)
-time.sleep(2)
+# Serial Communication Setup
+port = "/dev/tty/ACM0"      # Arduino port on Raspberry Pi
+ser = serial.Serial(port, 115200, timeout=1) # establish serial connection
+time.sleep(2)               # wait for the serial connection to initialize
+ser.reset_input_buffer()    # clear input buffer to start fresh
+ser.reset_output_buffer()   # clear output buffer to start fresh
 
+# Functions for Serial Communication
+# Send command from Pi to Arduino
 def pi_2_ard(command):
     try:
-        ser.write((command + '\n').encode('utf-8'))
-        time.sleep(0.1)
-    except Exception as e:
+        ser.write((command + '\n').encode('utf-8')) # send command to Arduino
+        ser.flush()                                 # ensure command is sent
+        time.sleep(0.05)                             # brief pause to allow Arduino to process
+    
+    except Exception as e:                          # Catch any serial communication errors
         print(f"Error sending command to Arduino: {e}")
         return None
-    
-def ard_2_pi():
-    try:
-        if ser.in_waiting > 0:
-            line = ser.readline().decode('utf-8').strip()
-            return line
-        else:
-            return None
-    except Exception as e:
-        print(f"Error reading from Arduino: {e}")
-        return None
-    
+
+# Read line from Arduino to Pi
+def serial_reader():
+    # Runs forever, printing each complete line from Arduino
+    while True:
+        try:
+            line = ser.readline()
+            if line:
+                text = line.decode('utf-8', errors='replace').strip()
+                if text:
+                    print(f"[Ard] {text}")
+            else:
+                # Tiny sleep prevents busy-wait when no data
+                time.sleep(0.01)
+        except Exception as e:
+            print(f"[Ard] Read error: {e}")
+            time.sleep(0.1)
+
+
 def get_user_input():
-    command = input("Waiting for command: ")
-    return command
+    try:
+        command = input("Waiting for command: ")
+        return command
+    except EOFError:
+        return "EXIT"
 
 
 # Load image from a given file path
@@ -83,17 +102,18 @@ def drive():
             print("No yellow line detected: Drive Blind")
 
 def main():
+
+    reader = threading.Thread(target = serial_reader, daemon=True)
+    reader.start()
+
     while True:
         command = get_user_input()
+        if not command:
+            continue
+        if command.upper() == "EXIT":
+            print("Exiting program.")
+            break
         pi_2_ard(command)
-        line = ard_2_pi()
-        print(f"Arduino says: {line}")    
-    
 
 if __name__ == "__main__":
     main()
-
-    
-# cv2.imshow("Image", mask)
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
