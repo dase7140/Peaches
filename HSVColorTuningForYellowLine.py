@@ -1,5 +1,19 @@
 import cv2
 import numpy as np
+from picamera2 import Picamera2
+
+picam = Picamera2()
+config = picam.create_preview_configuration(main={"size": (640, 480)})
+picam.configure(config)
+picam.start()
+
+def capture_image():
+    # Capture the image into a variable (numpy array)
+    image_data = picam.capture_array()
+    # cv2.imshow("Captured Image", image_data)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    return image_data
 
 def empty(a):
   pass
@@ -36,7 +50,7 @@ def stackImages(scale,imgArray):
   return ver
 
 #IMAGE PATH PASTE HERE
-path = 'RaceCoursePhotos\photo_2025-11-26T14-11-35.034363.jpg'
+path = capture_image()
 cv2.namedWindow("TrackBars")
 cv2.resizeWindow("TrackBars",640,240)
 cv2.createTrackbar("Hue Min","TrackBars",0,179,empty)
