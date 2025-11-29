@@ -143,7 +143,7 @@ def main():
     reader.start()
 
     #UserControl()
-    drive();
+    drive()
 
 if __name__ == "__main__":
     main()
