@@ -87,21 +87,13 @@ def process_image(image):
     yellow_detected = detect_yellow_mass(image, mask)
     return yellow_detected
 
-# Main driving function
-def drive():
-    while True:
-        img = load_image_from_path('RaceCoursePhotos\photo_2025-11-26T14-11-35.034363.jpg')
-        yellow_detected = process_image(img)
 
-        if yellow_detected:
-            pi_2_ard("DBI")
-        else:
-            search_for_yellow()
 
 # Search for yellow line
 def search_for_yellow():
+    global yellow_detected
     while yellow_detected == False:
-        img = load_image_from_path('RaceCoursePhotos\photo_2025-11-26T14-11-35.034363.jpg')
+        img = load_image_from_path('RaceCoursePhotos/photo_2025-11-26T15-02-12.033227.jpg')
         yellow_detected = process_image(img)
         if yellow_detected:
             pi_2_ard("DBI")
@@ -133,6 +125,17 @@ def UserControl():
         pi_2_ard(command)
         time.sleep(0.05)  # Small delay to avoid overwhelming the serial buffer
 
+# Main driving function
+def drive():
+    global yellow_detected
+    while True:
+        img = load_image_from_path('RaceCoursePhotos/photo_2025-11-26T15-02-12.033227.jpg')
+        yellow_detected = process_image(img)
+
+        if yellow_detected:
+            pi_2_ard("DBI")
+        else:
+            search_for_yellow()
 
 def main():
 
