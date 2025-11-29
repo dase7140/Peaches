@@ -194,7 +194,6 @@ void BrushMotorOn(){
 }
 
 void BrushMotorOff(){
-
   // Deactivate brush motor
   digitalWrite(brush_IN1, HIGH);
   digitalWrite(brush_IN2, HIGH);
@@ -204,38 +203,46 @@ void BrushMotorOff(){
   RaiseTray();
 }
 
+void turnLeft(){
+  left_motor.drive(-speed);
+  right_motor.drive(speed);
+}
+
+void turnRight(){
+  left_motor.drive(speed);
+  right_motor.drive(-speed);
+}
 
 
-
-// Front Left - 2
-// Front Right - 1
+// Front Left - 1
+// Front Right - 2
 // Left - 0
 // Right - 3  
 // Back - 4
 void WallCheck(){
-  int wallCheckLimit = 80;
+  int wallCheckLimit = 200;
   int IR_distances[numIRSensors];
   ReadAllIRDistances(IR_distances);
   for (int i = 0; i < numIRSensors; i++) {
     if(IR_distances[i] < wallCheckLimit) {
       if (i == 0) { // Left Sensor
-        Serial.println("Left Triggered");
+        Serial.println("L");
         brake(left_motor, right_motor); 
       }
-      else if (i == 1) { // Front Right Sensor
-        Serial.println("Front Right Triggered");
+      else if (i == 1) { // Front Left Sensor
+        Serial.println("FL");
         brake(left_motor, right_motor);
       }
-      else if (i == 2) { // Front Left Sensor
-        Serial.println("Front Left Triggered");
+      else if (i == 2) { // Front Right Sensor
+        Serial.println("FR");
         brake(left_motor, right_motor);
       }
       else if (i == 3) { // Right Sensor
-        Serial.println("Right Triggered");
+        Serial.println("R");
         brake(left_motor, right_motor);
       }
       else if (i == 4) { // Back Sensor
-        Serial.println("Back Triggered");
+        Serial.println("B");
         brake(left_motor, right_motor);
       }
     }
@@ -256,43 +263,36 @@ void DriveBlind(){
   ReadAllIRDistances(IR_distances);
 
   // Sensor Mapping Reminder:
-  // Left - 0, Front Right - 1, Front Left - 2, Right - 3, Back - 4
+  // Left - 0, Front Left - 1, Front Right - 2, Right - 3, Back - 4
 
   // 1. CHECK FRONT (Emergency Stop & Turn)
   if (IR_distances[2] < frontCheckLimit || IR_distances[1] < frontCheckLimit) {
-    Serial.println("Front Obstacle! Backing up...");
-    
     // Stop
     brake(left_motor, right_motor);
     delay(200);
-
-    // Back up
     back(left_motor, right_motor, turn_speed);
     delay(500); 
     brake(left_motor, right_motor);
     delay(200);
-
+      
     // Read sensors again to find the open path
     ReadAllIRDistances(IR_distances);
-    int leftSpace = IR_distances[0];
-    int rightSpace = IR_distances[3];
+    int leftSpace = (IR_distances[0] + IR_distances[1]) / 2;  // Average of Left and Front Left
+    int rightSpace = (IR_distances[2] + IR_distances[3]) / 2; // Average of Front Right and Right
 
     if (leftSpace > rightSpace) {
-      Serial.println("Turning Left (More Space)");
       // Turn Left in place
-      left_motor.drive(-turn_speed);
-      right_motor.drive(turn_speed);
-      delay(800); // Adjust this delay to change turn angle
+      turnLeft();
+      delay(300); // Adjust this delay to change turn angle
     } else {
-      Serial.println("Turning Right (More Space)");
       // Turn Right in place
-      left_motor.drive(turn_speed);
-      right_motor.drive(-turn_speed);
-      delay(800); // Adjust this delay to change turn angle
+      turnRight();
+      delay(300); // Adjust this delay to change turn angle
     }
     
     brake(left_motor, right_motor);
     delay(100); // Brief pause before resuming
+    ReadAllIRDistances(IR_distances);
   }
   // 2. CHECK SIDES (Course Correction)
   else if (IR_distances[0] < wallCheckLimit) {
@@ -360,13 +360,11 @@ void loop() {
     }
     //Move left
     else if (msg == "ML0") { 
-      left_motor.drive(speed);
-      right_motor.drive(-speed);
+      turnLeft();
     }
     //Move right
     else if (msg == "MR0") {
-      left_motor.drive(-speed);
-      right_motor.drive(speed);
+      turnRight();
     }
     //Move backward
     else if (msg == "MB0") {
