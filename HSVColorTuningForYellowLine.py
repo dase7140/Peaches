@@ -36,7 +36,7 @@ def stackImages(scale,imgArray):
   return ver
 
 #IMAGE PATH PASTE HERE
-path = 'captured_image.jpg'
+path = 'RaceCoursePhotos\photo_2025-11-26T14-11-35.034363.jpg'
 cv2.namedWindow("TrackBars")
 cv2.resizeWindow("TrackBars",640,240)
 cv2.createTrackbar("Hue Min","TrackBars",0,179,empty)
