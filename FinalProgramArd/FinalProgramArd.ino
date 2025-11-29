@@ -203,14 +203,14 @@ void BrushMotorOff(){
   RaiseTray();
 }
 
-void turnLeft(){
-  left_motor.drive(-speed);
-  right_motor.drive(speed);
+void turnLeft(int spd){
+  left_motor.drive(-spd);
+  right_motor.drive(spd);
 }
 
-void turnRight(){
-  left_motor.drive(speed);
-  right_motor.drive(-speed);
+void turnRight(int spd){
+  left_motor.drive(spd);
+  right_motor.drive(-spd);
 }
 
 
@@ -282,11 +282,11 @@ void DriveBlind(){
 
     if (leftSpace > rightSpace) {
       // Turn Left in place
-      turnLeft();
+      turnLeft(turn_speed);
       delay(300); // Adjust this delay to change turn angle
     } else {
       // Turn Right in place
-      turnRight();
+      turnRight(turn_speed);
       delay(300); // Adjust this delay to change turn angle
     }
     
@@ -312,6 +312,15 @@ void DriveBlind(){
     // Drive straight
     forward(left_motor, right_motor, drive_speed);
   }
+}
+
+void YellowSearch(){
+  turnRight(150);
+  delay(500);
+  brake(left_motor, right_motor);
+  turnLeft(150);
+  delay(1000);
+  brake(left_motor, right_motor);
 }
 
 // #############################################################
@@ -353,6 +362,10 @@ void loop() {
     // Ignore empty messages
     if (msg.length() == 0){
       return; 
+    }
+    // Search for Yellow Line
+    else if (msg == "YLL") {
+      YellowSearch();
     }
     //Move forward
     else if (msg == "MFD") {

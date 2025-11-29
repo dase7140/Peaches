@@ -11,6 +11,7 @@ ser = serial.Serial(port, 115200, timeout=1) # establish serial connection
 time.sleep(2)               # wait for the serial connection to initialize
 ser.reset_input_buffer()    # clear input buffer to start fresh
 ser.reset_output_buffer()   # clear output buffer to start fresh
+yellow_detected = False
 
 # Functions for Serial Communication
 # Send command from Pi to Arduino
@@ -91,21 +92,26 @@ def process_image(image):
 
 def drive():
     while True:
-        img = load_image_from_path('RaceCoursePhotos\photo_2025-11-26T14-24-29.867799.jpg')
+        img = load_image_from_path('RaceCoursePhotos\photo_2025-11-26T14-11-35.034363.jpg')
         yellow_detected = process_image(img)
 
         if yellow_detected:
             # Drive IR
-            print("Yellow line detected: Drive IR")
+            pi_2_ard("DBI")
         else:
-            # Drive Blind
-            print("No yellow line detected: Drive Blind")
+            search_for_yellow()
 
-def main():
+# Search for yellow line
+def search_for_yellow():
+    while yellow_detected == False:
+        img = load_image_from_path('RaceCoursePhotos\photo_2025-11-26T14-11-35.034363.jpg')
+        yellow_detected = process_image(img)
+        if yellow_detected:
+            pi_2_ard("DBI")
+        else: 
+            pi_2_ard("YLL")
 
-    reader = threading.Thread(target = serial_reader, daemon=True)
-    reader.start()
-
+def UserControl():
     while True:
         command = get_user_input()
         if not command:
@@ -115,6 +121,15 @@ def main():
             break
         pi_2_ard(command)
         time.sleep(0.05)  # Small delay to avoid overwhelming the serial buffer
+
+
+def main():
+
+    reader = threading.Thread(target = serial_reader, daemon=True)
+    reader.start()
+
+    #UserControl()
+    
 
 if __name__ == "__main__":
     main()
