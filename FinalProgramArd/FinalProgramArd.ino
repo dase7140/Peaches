@@ -254,11 +254,11 @@ void WallCheck(){
 bool isDrivingBlind = false;
 
 void DriveBlind(){
-  int wallCheckLimit = 150;      // Distance to stop at (mm)
-  int frontCheckLimit = 350;
+  int wallCheckLimit = 80;      // Distance to stop at (mm)
+  int frontCheckLimit = 300;
   int IR_distances[numIRSensors];
   int drive_speed = 180;
-  int turn_speed = 150;
+  int turn_speed = 180;
   
   ReadAllIRDistances(IR_distances);
 
@@ -272,8 +272,8 @@ void DriveBlind(){
     delay(200);
     // back(left_motor, right_motor, turn_speed);
     // delay(500); 
-    brake(left_motor, right_motor);
-    delay(200);
+    // brake(left_motor, right_motor);
+    // delay(200);
       
     // Read sensors again to find the open path
     ReadAllIRDistances(IR_distances);
@@ -317,10 +317,10 @@ void DriveBlind(){
 bool yellow_Searching = false;
 
 void YellowSearch(){
-  turnRight(150);
+  turnRight(180);
   delay(500);
   brake(left_motor, right_motor);
-  turnLeft(150);
+  turnLeft(180);
   delay(1000);
   brake(left_motor, right_motor);
 }
@@ -350,9 +350,11 @@ void setup() {
 void loop() {
 
   if  (isDrivingBlind){
+    yellow_Searching = false;
     DriveBlind();
   }
   if (yellow_Searching){
+    isDrivingBlind = false;
     YellowSearch();
   }
 
