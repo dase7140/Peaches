@@ -257,8 +257,8 @@ void DriveBlind(){
   int wallCheckLimit = 80;      // Distance to stop at (mm)
   int frontCheckLimit = 300;
   int IR_distances[numIRSensors];
-  int drive_speed = 180;
-  int turn_speed = 180;
+  int drive_speed = 200;
+  int turn_speed = 255;
   
   ReadAllIRDistances(IR_distances);
 
@@ -317,10 +317,10 @@ void DriveBlind(){
 bool yellow_Searching = false;
 
 void YellowSearch(){
-  turnRight(180);
+  turnRight(255);
   delay(500);
   brake(left_motor, right_motor);
-  turnLeft(180);
+  turnLeft(255);
   delay(1000);
   brake(left_motor, right_motor);
 }
