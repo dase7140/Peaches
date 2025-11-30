@@ -5,8 +5,100 @@ import time
 import threading
 import sys 
 from picamera2 import Picamera2
+from __future__ import print_function
+import pixy
+from ctypes import *
+from pixy import *
+import time
 
 
+# Pixy Setup
+#1 = red, 2 = green 3 = blue 4= yellow 5 = purple (GRAVEL)  6 = pink (RAMP)
+centerX = 157
+deadband = 30
+targetSignature = 3 
+gravelSignature = 5
+rampSignature = 6
+lastTargetDirection = 0
+lostTargetTimer = 0
+searchTimeout = 3000 
+
+pixy.init()
+pixy.change_prog("color_connected_components")
+
+#class to pull from 
+class Blocks(Structure):
+    _fields_ = [
+        ("m_signature", c_uint),
+        ("m_x", c_uint),
+        ("m_y", c_uint),
+        ("m_width", c_uint),
+        ("m_height", c_uint),
+        ("m_angle", c_uint),
+        ("m_index", c_uint),
+        ("m_age", c_uint),
+    ]
+
+blocks = BlockArray(100)
+frame = 0
+
+def seeColor(sig, count):
+    for i in range(count):
+        if blocks[i].m_signature == sig:
+            return True
+    return False
+
+def getTargetX(sig, count):
+    for i in range(count):
+        if blocks[i].m_signature == sig:
+            return blocks[i].m_x
+    return -1
+
+def Pixicam():
+    count = pixy.ccc_get_blocks(100, blocks)
+    #now is for incase we need a search timeout
+    now = int(round(time.time() * 1000))
+
+    if count > 0:
+        targetSeen = seeColor(targetSignature, count)
+        targetX = getTargetX(targetSignature, count)
+        return True
+    else:
+        return False
+
+
+def Pixidrive():
+    count = pixy.ccc_get_blocks(100, blocks)
+    #now is for incase we need a search timeout
+    now = int(round(time.time() * 1000))
+
+    if count > 0:
+        targetSeen = seeColor(targetSignature, count)
+        targetX = getTargetX(targetSignature, count)
+
+        if targetSeen and targetX != -1:
+            error = targetX - centerX
+            lostTargetTimer = now
+
+            if abs(error) <= deadband:
+                print("Move Forward")
+                pi_2_ard("MFD")
+                lastTargetDirection = 0 #debugging
+            elif error < 0:
+                print("Turn Left")
+                pi_2_ard("ML0")
+                lastTargetDirection = -1
+            else:
+                print("Turn Right")
+                pi_2_ard("MR0")
+                lastTargetDirection = 1
+        else:
+            print("No target found")
+            pi_2_ard("MF0")
+    else:
+        print(f"Count =  {count}")
+        pi_2_ard("MF0")
+#one for move backwards
 
 
 # Serial Communication Setup
@@ -139,17 +231,23 @@ def UserControl():
 # Main driving function
 def drive():
     last = None  # None, True, or False
+    pixi = None
+
     while True:
+        pixi = Pixicam()
         img = capture_image()
         current = process_image(img)
         print(f"Yellow Detected: {current}")
 
-        if current and last is not True:
-            pi_2_ard("DBI")
-            print("Sent DBI (yellow acquired)")
-        elif not current and last is not False:
-            pi_2_ard("YLL")
-            print("Sent YLL (yellow lost)")
+        if pixi is True:
+            Pixidrive()
+        elif pixi is False:
+            if current and last is not True:
+                pi_2_ard("DBI")
+                print("Sent DBI (yellow acquired)")
+            elif not current and last is not False:
+                pi_2_ard("YLL")
+                print("Sent YLL (yellow lost)")
 
         last = current
         time.sleep(0.1)
@@ -163,8 +261,9 @@ def main():
     reader.start()
 
     #UserControl()
-    drive()
+    #drive()
     # capture_image()
-
+    Pixidrive()
+    
 if __name__ == "__main__":
     main()
