@@ -270,8 +270,8 @@ void DriveBlind(){
     // Stop
     brake(left_motor, right_motor);
     delay(200);
-    back(left_motor, right_motor, turn_speed);
-    delay(500); 
+    // back(left_motor, right_motor, turn_speed);
+    // delay(500); 
     brake(left_motor, right_motor);
     delay(200);
       
@@ -283,11 +283,11 @@ void DriveBlind(){
     if (leftSpace > rightSpace) {
       // Turn Left in place
       turnLeft(turn_speed);
-      delay(300); // Adjust this delay to change turn angle
+      delay(600); // Adjust this delay to change turn angle
     } else {
       // Turn Right in place
       turnRight(turn_speed);
-      delay(300); // Adjust this delay to change turn angle
+      delay(600); // Adjust this delay to change turn angle
     }
     
     brake(left_motor, right_motor);
