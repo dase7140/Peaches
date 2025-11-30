@@ -23,6 +23,7 @@ picam.configure(config)
 picam.start()
 
 yellow_detected = False
+flag = False
 
 def capture_image():
     # Capture the image into a variable (numpy array)
@@ -38,7 +39,7 @@ def pi_2_ard(command):
     try:
         ser.write((command + '\n').encode('utf-8')) # send command to Arduino
         ser.flush()                                 # ensure command is sent
-        time.sleep(0.05)                             # brief pause to allow Arduino to process
+        time.sleep(0.5)                             # brief pause to allow Arduino to process
     
     except Exception as e:                          # Catch any serial communication errors
         print(f"Error sending command to Arduino: {e}")
@@ -146,6 +147,7 @@ def UserControl():
 # Main driving function
 def drive():
     global yellow_detected
+    global flag
     while True:
         #img = load_image_from_path('RaceCoursePhotos/photo_2025-11-26T15-02-12.033227.jpg')
         img = capture_image()
@@ -153,9 +155,11 @@ def drive():
         print(f"Yellow Detected: {yellow_detected}")
 
         if yellow_detected:
-            pi_2_ard('DBI')
-
+            if flag == False:
+                pi_2_ard("DBI")
+                flag = True
         else:
+            flag = False
             search_for_yellow()
 
 def main():
