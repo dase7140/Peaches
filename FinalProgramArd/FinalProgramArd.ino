@@ -314,6 +314,8 @@ void DriveBlind(){
   }
 }
 
+bool yellow_Searching = false;
+
 void YellowSearch(){
   turnRight(150);
   delay(500);
@@ -349,8 +351,9 @@ void loop() {
 
   if  (isDrivingBlind){
     DriveBlind();
-  } else {
-    WallCheck();
+  }
+  if (yellow_Searching){
+    YellowSearch();
   }
 
   if (Serial.available() > 0){
@@ -358,6 +361,7 @@ void loop() {
     msg.trim(); // Remove any leading/trailing whitespace
 
     isDrivingBlind = false;
+    yellow_Searching = false;
 
     // Ignore empty messages
     if (msg.length() == 0){
@@ -365,7 +369,7 @@ void loop() {
     }
     // Search for Yellow Line
     else if (msg == "YLL") {
-      YellowSearch();
+      yellow_Searching = true;
     }
     //Move forward
     else if (msg == "MFD") {
