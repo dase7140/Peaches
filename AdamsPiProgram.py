@@ -56,12 +56,7 @@ def getTargetX(sig, count):
 
 def Pixicam():
     count = pixy.ccc_get_blocks(100, blocks)
-    #now is for incase we need a search timeout
-    now = int(round(time.time() * 1000))
-
     if count > 0:
-        targetSeen = seeColor(targetSignature, count)
-        targetX = getTargetX(targetSignature, count)
         return True
     else:
         return False
@@ -69,13 +64,11 @@ def Pixicam():
 
 def Pixidrive():
     count = pixy.ccc_get_blocks(100, blocks)
-    #now is for incase we need a search timeout
-    now = int(round(time.time() * 1000))
 
     if count > 0:
         targetSeen = seeColor(targetSignature, count)
         targetX = getTargetX(targetSignature, count)
-
+    
         if targetSeen and targetX != -1:
             error = targetX - centerX
             lostTargetTimer = now
@@ -98,7 +91,6 @@ def Pixidrive():
     else:
         print(f"Count =  {count}")
         pi_2_ard("MF0")
-#one for move backwards
 
 
 # Serial Communication Setup
@@ -263,7 +255,8 @@ def main():
     #UserControl()
     #drive()
     # capture_image()
-    Pixidrive()
-    
+    while True:
+        Pixidrive()
+
 if __name__ == "__main__":
     main()
