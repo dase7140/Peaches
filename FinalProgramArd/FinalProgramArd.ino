@@ -120,7 +120,7 @@ void ReadAllIRDistances(int distances[]) {
 const int offsetA = 1;
 const int offsetB = -1;
 
-int speed = 255;
+int speed = 180;
 
 Motor left_motor = Motor(AIN1, AIN2, PWMA, offsetA, STBY);
 Motor right_motor = Motor(BIN1, BIN2, PWMB, offsetB, STBY); 
@@ -257,8 +257,8 @@ void DriveBlind(){
   int wallCheckLimit = 80;      // Distance to stop at (mm)
   int frontCheckLimit = 300;
   int IR_distances[numIRSensors];
-  int drive_speed = 200;
-  int turn_speed = 255;
+  int drive_speed = 180;
+  int turn_speed = 180;
   
   ReadAllIRDistances(IR_distances);
 
@@ -270,10 +270,10 @@ void DriveBlind(){
     // Stop
     brake(left_motor, right_motor);
     delay(200);
-    // back(left_motor, right_motor, turn_speed);
-    // delay(500); 
-    // brake(left_motor, right_motor);
-    // delay(200);
+    back(left_motor, right_motor, turn_speed);
+    delay(100); 
+    brake(left_motor, right_motor);
+    delay(200);
       
     // Read sensors again to find the open path
     ReadAllIRDistances(IR_distances);
@@ -283,11 +283,11 @@ void DriveBlind(){
     if (leftSpace > rightSpace) {
       // Turn Left in place
       turnLeft(turn_speed);
-      delay(600); // Adjust this delay to change turn angle
+      delay(500); // Adjust this delay to change turn angle
     } else {
       // Turn Right in place
       turnRight(turn_speed);
-      delay(600); // Adjust this delay to change turn angle
+      delay(500); // Adjust this delay to change turn angle
     }
     
     brake(left_motor, right_motor);

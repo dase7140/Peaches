@@ -12,7 +12,7 @@ if __name__ == '__main__':
 # for tracking
 centerX = 157
 deadband = 30
-targetSignature = 3 #1 = red, 2 = greeb 3 = blue
+targetSignature = 3 #1 = red, 2 = green 3 = blue 4 = yellow 5 = purple (gravel) 6 = pink
 lastTargetDirection = 0
 lostTargetTimer = 0
 searchTimeout = 3000
