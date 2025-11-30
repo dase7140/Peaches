@@ -1,3 +1,4 @@
+from __future__ import print_function
 import cv2
 import numpy as np
 import serial
@@ -5,7 +6,6 @@ import time
 import threading
 import sys 
 from picamera2 import Picamera2
-from __future__ import print_function
 import pixy
 from ctypes import *
 from pixy import *
