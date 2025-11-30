@@ -23,7 +23,7 @@ picam.configure(config)
 picam.start()
 
 yellow_detected = False
-flag = False
+flag = True
 
 def capture_image():
     # Capture the image into a variable (numpy array)
@@ -107,19 +107,7 @@ def process_image(image):
     yellow_detected = detect_yellow_mass(image, mask)
     return yellow_detected
 
-# Search for yellow line
-def search_for_yellow():
-    global yellow_detected
-    while yellow_detected == False:
-        #img = load_image_from_path('RaceCoursePhotos/photo_2025-11-26T15-02-12.033227.jpg')
-        img = capture_image()
-        yellow_detected = process_image(img)
-        if yellow_detected:
-            pi_2_ard("DBI")
-            print(" Sent DBI to Arduino")
-        else: 
-            pi_2_ard("YLL")
-            print(" Sent YLL to Arduino")
+
 
 def wait_for_start():
     while True:
@@ -148,23 +136,21 @@ def UserControl():
 
 # Main driving function
 def drive():
-    global yellow_detected
-    global flag
+    last = None  # None, True, or False
     while True:
-        #img = load_image_from_path('RaceCoursePhotos/photo_2025-11-26T15-02-12.033227.jpg')
         img = capture_image()
-        yellow_detected = process_image(img)
-        print(f"Yellow Detected: {yellow_detected}")
+        current = process_image(img)
+        print(f"Yellow Detected: {current}")
 
-        if yellow_detected:
-            if flag == False:
-                pi_2_ard("DBI")
-                print(" Sent DBI to Arduino")
-                flag = True
-        else:
-            flag = False
-            print(" Searching for Yellow Line")
-            search_for_yellow()
+        if current and last is not True:
+            pi_2_ard("DBI")
+            print("Sent DBI (yellow acquired)")
+        elif not current and last is not False:
+            pi_2_ard("YLL")
+            print("Sent YLL (yellow lost)")
+
+        last = current
+        time.sleep(0.1)
 
 def main():
 
