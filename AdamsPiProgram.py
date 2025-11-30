@@ -116,8 +116,10 @@ def search_for_yellow():
         yellow_detected = process_image(img)
         if yellow_detected:
             pi_2_ard("DBI")
+            print(" Sent DBI to Arduino")
         else: 
             pi_2_ard("YLL")
+            print(" Sent YLL to Arduino")
 
 def wait_for_start():
     while True:
@@ -157,9 +159,11 @@ def drive():
         if yellow_detected:
             if flag == False:
                 pi_2_ard("DBI")
+                print(" Sent DBI to Arduino")
                 flag = True
         else:
             flag = False
+            print(" Searching for Yellow Line")
             search_for_yellow()
 
 def main():
