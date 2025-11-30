@@ -102,6 +102,8 @@ def detect_yellow_mass(img, mask, area_threshold=1000):
 def process_image(image):
     # Placeholder for any additional image processing if needed
     image = cv2.resize(image, (300, 300))
+    # Crop to upper half only (keep top 150 rows, discard bottom 150)
+    image = image[0:150, :]
     image = convert_bgr_to_hsv(image)
     mask = yellow_mask(image)
     yellow_detected = detect_yellow_mass(image, mask)
