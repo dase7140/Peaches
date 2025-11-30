@@ -315,14 +315,31 @@ void DriveBlind(){
 }
 
 bool yellow_Searching = false;
+int yellow_search_step = 0;
 
 void YellowSearch(){
-  turnRight(255);
-  delay(500);
-  brake(left_motor, right_motor);
-  turnLeft(255);
-  delay(1000);
-  brake(left_motor, right_motor);
+  //checks current stearch step to determine direction; backs up for 5, turns right for 5, turns left for 10, 
+  // right for 15, left for 20, etc. After 30 steps, defaults to turning in place to the right
+  if(0 <= yellow_search_step && yellow_search_step <= 5){
+    back(left_motor, right_motor, speed);
+  }
+  else if(6 <= yellow_search_step && yellow_search_step <= 10){
+    turnRight(speed);
+  }
+  else if(11 <= yellow_search_step && yellow_search_step <= 20){
+    turnLeft(speed);
+  }
+  else if(21 <= yellow_search_step && yellow_search_step <= 35){
+    turnRight(speed);
+  }
+  else if(36 <= yellow_search_step && yellow_search_step <= 55){
+    turnLeft(speed);
+  }
+  else {
+    turnRight(speed);
+  }
+  yellow_search_step += 1;
+  delay(100);
 }
 
 // #############################################################
@@ -371,6 +388,7 @@ void loop() {
     }
     // Search for Yellow Line
     else if (msg == "YLL") {
+      yellow_search_step = 0;
       yellow_Searching = true;
     }
     //Move forward
