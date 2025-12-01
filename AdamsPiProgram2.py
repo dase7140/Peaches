@@ -41,6 +41,18 @@ class Blocks(Structure):
 blocks = BlockArray(100)
 frame = 0
 
+def seeColor(sig, count):
+    for i in range(count):
+        if blocks[i].m_signature == sig:
+            return True
+    return False
+
+def getTargetX(sig, count):
+    for i in range(count):
+        if blocks[i].m_signature == sig:
+            return blocks[i].m_x
+    return -1
+
 def Pixicam():
     """
     Queries Pixy camera for color blocks matching target signature.
@@ -53,10 +65,16 @@ def Pixicam():
     """
     try:
         count = pixy.ccc_get_blocks(100, blocks)
+        #now is for incase we need a search timeout
+        now = int(round(time.time() * 1000))
+
         if count > 0:
-            for i in range(count):
-                if blocks[i].m_signature == target_signature:
-                    return True
+            targetSeen = seeColor(target_signature, count)
+            targetX = getTargetX(target_signature, count)
+
+            if targetSeen and targetX != -1:
+                return True
+            
             return False  # No matching signature found
         else:
             return False
