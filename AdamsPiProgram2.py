@@ -4,7 +4,8 @@ import numpy as np
 import serial
 import time
 import threading
-import sys 
+import sys
+from queue import Queue, Empty
 from picamera2 import Picamera2
 import pixy
 from ctypes import *
@@ -64,18 +65,20 @@ serial_thread = None
 user_stop_requested = False
 stdin_thread = None
 
+# Message queues for routing serial data
+ack_queue = Queue()  # For ACK messages
+ir_queue = Queue()   # For IR sensor data
+
 def serial_reader():
     """
     Continuously reads incoming serial messages from Arduino.
-    Designed to run in a separate thread.
+    Routes messages to appropriate queues for other functions to consume.
     
-    Monitors for:
-    - ESTOP: Emergency stop triggered by Arduino
-    - IR: Sensor data responses
-    - ACK: Acknowledgment messages (handled by pi_2_ard)
-    - Other messages: General Arduino output
-    
-    Updates global flags (e.g., estop_triggered) based on messages.
+    Message routing:
+    - ESTOP: Sets global flag immediately
+    - ACK:*: Routed to ack_queue for pi_2_ard()
+    - IR:*: Routed to ir_queue for read_ir_sensors()
+    - Other: Printed as general Arduino output
     """
     global serial_reader_running, estop_triggered
     
@@ -87,24 +90,20 @@ def serial_reader():
                 line = ser.readline().decode('utf-8', errors='replace').strip()
                 
                 if line:
-                    # Handle ESTOP message
+                    # Handle ESTOP message - immediate action
                     if line == "ESTOP":
                         estop_triggered = True
                         print("[Arduino] EMERGENCY STOP TRIGGERED")
                     
-                    # Handle IR sensor data
-                    elif line.startswith("IR:"):
-                        # IR data is typically handled by pi_2_ard when requested
-                        # But we can log it if received unexpectedly
-                        pass
-                    
-                    # Handle ACK messages
+                    # Route ACK messages to ack_queue
                     elif line.startswith("ACK:"):
-                        # ACK messages are handled by pi_2_ard
-                        # Don't print to avoid duplicate output
-                        pass
+                        ack_queue.put(line)
                     
-                    # Handle other messages
+                    # Route IR data to ir_queue
+                    elif line.startswith("IR:"):
+                        ir_queue.put(line)
+                    
+                    # Print other messages
                     else:
                         print(f"[Arduino] {line}")
             
@@ -215,54 +214,54 @@ def stop_User_Input():
 
 
 # Send command from Pi to Arduino with ACK waiting and retry logic
-def pi_2_ard(command, max_retries=3, timeout=0.1):
+def pi_2_ard(command, max_retries=3, timeout=0.5):
     """
-    Sends a command to Arduino and waits for acknowledgment.
+    Sends a command to Arduino and waits for acknowledgment from ack_queue.
     Retries if no ACK is received within timeout period.
     
     Args:
         command: str - Command to send to Arduino
         max_retries: int - Maximum number of retry attempts (default: 3)
-        timeout: float - Seconds to wait for ACK before retrying (default: 0.1)
+        timeout: float - Seconds to wait for ACK before retrying (default: 0.5)
         
     Returns:
         bool - True if ACK received, False if all retries failed
     """
     for attempt in range(max_retries):
         try:
-            # Clear input buffer before sending command
-            ser.reset_input_buffer()
+            # Clear any stale ACKs from queue
+            while not ack_queue.empty():
+                try:
+                    ack_queue.get_nowait()
+                except Empty:
+                    break
             
             # Send command to Arduino
             ser.write((command + '\n').encode('utf-8'))
             ser.flush()
             
-            # Wait for ACK response
-            start_time = time.time()
+            # Wait for ACK response from queue
             expected_ack = f"ACK:{command}"
             
-            while (time.time() - start_time) < timeout:
-                if ser.in_waiting > 0:
-                    line = ser.readline().decode('utf-8', errors='replace').strip()
-                    
-                    # Check if this is the expected ACK
-                    if line == expected_ack:
-                        if attempt > 0:
-                            print(f"[Comm] Command '{command}' acknowledged (attempt {attempt + 1})")
-                        return True
-                    
-                    # If it's a different message, keep waiting
-                    elif line and not line.startswith("ACK:"):
-                        # Non-ACK message, print it
-                        print(f"[Ard] {line}")
+            try:
+                # Wait for message from queue (blocking with timeout)
+                ack_msg = ack_queue.get(timeout=timeout)
                 
-                time.sleep(0.01)  # Small delay to avoid busy waiting
-            
-            # Timeout reached, no ACK received
-            if attempt < max_retries - 1:
-                print(f"[Comm] No ACK for '{command}' (attempt {attempt + 1}/{max_retries}), retrying...")
-            else:
-                print(f"[Comm] FAILED: No ACK for '{command}' after {max_retries} attempts")
+                # Check if this is the expected ACK
+                if ack_msg == expected_ack:
+                    if attempt > 0:
+                        print(f"[Comm] Command '{command}' acknowledged (attempt {attempt + 1})")
+                    return True
+                else:
+                    # Unexpected ACK - wrong command?
+                    print(f"[Comm] Unexpected ACK: {ack_msg} (expected {expected_ack})")
+                    
+            except Empty:
+                # Timeout - no ACK received
+                if attempt < max_retries - 1:
+                    print(f"[Comm] No ACK for '{command}' (attempt {attempt + 1}/{max_retries}), retrying...")
+                else:
+                    print(f"[Comm] FAILED: No ACK for '{command}' after {max_retries} attempts")
         
         except Exception as e:
             print(f"[Comm] Error sending command '{command}': {e}")
@@ -480,13 +479,20 @@ class IRSensorData:
 
 def read_ir_sensors():
     """
-    Requests IR sensor data from Arduino and parses the response.
+    Requests IR sensor data from Arduino and parses the response from ir_queue.
     
     Returns:
         IRSensorData: Object containing all 5 IR distance readings
                       Returns None if communication fails or timeout occurs
     """
     try:
+        # Clear any stale IR data from queue
+        while not ir_queue.empty():
+            try:
+                ir_queue.get_nowait()
+            except Empty:
+                break
+        
         # Send command to Arduino to read IR sensors with ACK waiting
         success = pi_2_ard("RIS")
         
@@ -498,53 +504,47 @@ def read_ir_sensors():
         sensor_data = IRSensorData()
         sensor_data.timestamp = time.time()
         
-        # Wait for and parse compact IR response: "IR:val0,val1,val2,val3,val4"
-        timeout = time.time() + 1.0  # 1 second timeout
-        
-        while time.time() < timeout:
-            if ser.in_waiting > 0:
-                line = ser.readline().decode('utf-8', errors='replace').strip()
-                
-                # Look for IR data line
-                if line.startswith("IR:"):
-                    try:
-                        # Parse compact format: "IR:450,320,500,380,600"
-                        data_str = line[3:]  # Remove "IR:" prefix
-                        values = data_str.split(',')
-                        
-                        # Validate we got all 5 sensors
-                        if len(values) != IR_SENSOR_COUNT:
-                            print(f"[IR] Invalid data count: got {len(values)}, expected {IR_SENSOR_COUNT}")
-                            return None
-                        
-                        # Parse each value
-                        for i, val_str in enumerate(values):
-                            sensor_data.raw_distances[i] = int(val_str.strip())
-                        
-                        # Map to named fields
-                        sensor_data.left = sensor_data.raw_distances[IR_LEFT]
-                        sensor_data.front_left = sensor_data.raw_distances[IR_FRONT_LEFT]
-                        sensor_data.front_right = sensor_data.raw_distances[IR_FRONT_RIGHT]
-                        sensor_data.right = sensor_data.raw_distances[IR_RIGHT]
-                        sensor_data.back = sensor_data.raw_distances[IR_BACK]
-                        sensor_data.valid = True
-                        
-                        print(f"[IR] {sensor_data}")
-                        return sensor_data
-                        
-                    except (ValueError, IndexError) as e:
-                        print(f"[IR] Parse error: {line} - {e}")
+        # Wait for IR response from queue (blocking with timeout)
+        try:
+            line = ir_queue.get(timeout=1.0)  # 1 second timeout
+            
+            # Parse compact format: "IR:450,320,500,380,600"
+            if line.startswith("IR:"):
+                try:
+                    data_str = line[3:]  # Remove "IR:" prefix
+                    values = data_str.split(',')
+                    
+                    # Validate we got all 5 sensors
+                    if len(values) != IR_SENSOR_COUNT:
+                        print(f"[IR] Invalid data count: got {len(values)}, expected {IR_SENSOR_COUNT}")
                         return None
-                
-                # Skip other messages
-                elif line and not line.startswith("ACK:"):
-                    print(f"[Ard] {line}")
+                    
+                    # Parse each value
+                    for i, val_str in enumerate(values):
+                        sensor_data.raw_distances[i] = int(val_str.strip())
+                    
+                    # Map to named fields
+                    sensor_data.left = sensor_data.raw_distances[IR_LEFT]
+                    sensor_data.front_left = sensor_data.raw_distances[IR_FRONT_LEFT]
+                    sensor_data.front_right = sensor_data.raw_distances[IR_FRONT_RIGHT]
+                    sensor_data.right = sensor_data.raw_distances[IR_RIGHT]
+                    sensor_data.back = sensor_data.raw_distances[IR_BACK]
+                    sensor_data.valid = True
+                    
+                    print(f"[IR] {sensor_data}")
+                    return sensor_data
+                    
+                except (ValueError, IndexError) as e:
+                    print(f"[IR] Parse error: {line} - {e}")
+                    return None
             else:
-                time.sleep(0.01)  # Small delay to avoid busy waiting
-        
-        # Timeout reached
-        print(f"[IR] Timeout: No IR data received")
-        return None
+                print(f"[IR] Unexpected message: {line}")
+                return None
+                
+        except Empty:
+            # Timeout reached
+            print(f"[IR] Timeout: No IR data received")
+            return None
             
     except Exception as e:
         print(f"[IR] Error reading sensors: {e}")
