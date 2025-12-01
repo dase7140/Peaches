@@ -16,7 +16,7 @@ import time
 #1 = red, 2 = green 3 = blue 4= yellow 5 = purple (GRAVEL)  6 = pink (RAMP)
 centerX = 157
 deadband = 30
-targetSignature = 3 
+targetSignature = 1
 gravelSignature = 5
 rampSignature = 6
 lastTargetDirection = 0
