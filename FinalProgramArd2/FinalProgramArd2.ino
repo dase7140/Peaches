@@ -502,24 +502,24 @@ void loop() {
 
     // Activate Brush Motor
     else if (msg == "ABM") {
-      BrushMotorOn();
       Serial.println("ACK:ABM");
+      BrushMotorOn();
     }
     // Deactivate Brush Motor
     else if (msg == "DBM") {
-      BrushMotorOff();
       Serial.println("ACK:DBM");
+      BrushMotorOff();
     }
 
     // Lower Tray
     else if (msg == "LTY") {
-      LowerTray();
       Serial.println("ACK:LTY");
+      LowerTray();
     }
     // Raise Tray
     else if (msg == "RTY") {
-      RaiseTray();
       Serial.println("ACK:RTY");
+      RaiseTray();
     }
 
     // Read IR Sensor Distances

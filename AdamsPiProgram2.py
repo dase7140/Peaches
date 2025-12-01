@@ -214,7 +214,7 @@ def stop_User_Input():
 
 
 # Send command from Pi to Arduino with ACK waiting and retry logic
-def pi_2_ard(command, max_retries=3, timeout=0.5):
+def pi_2_ard(command, max_retries=3, timeout=1.0):
     """
     Sends a command to Arduino and waits for acknowledgment from ack_queue.
     Retries if no ACK is received within timeout period.
@@ -222,7 +222,7 @@ def pi_2_ard(command, max_retries=3, timeout=0.5):
     Args:
         command: str - Command to send to Arduino
         max_retries: int - Maximum number of retry attempts (default: 3)
-        timeout: float - Seconds to wait for ACK before retrying (default: 0.5)
+        timeout: float - Seconds to wait for ACK before retrying (default: 1.0)
         
     Returns:
         bool - True if ACK received, False if all retries failed
@@ -230,11 +230,19 @@ def pi_2_ard(command, max_retries=3, timeout=0.5):
     for attempt in range(max_retries):
         try:
             # Clear any stale ACKs from queue
+            stale_count = 0
             while not ack_queue.empty():
                 try:
-                    ack_queue.get_nowait()
+                    stale_ack = ack_queue.get_nowait()
+                    stale_count += 1
                 except Empty:
                     break
+            
+            if stale_count > 0:
+                print(f"[Comm] Cleared {stale_count} stale ACK(s) from queue")
+            
+            # Brief delay to ensure Arduino is ready for next command
+            time.sleep(0.05)
             
             # Send command to Arduino
             ser.write((command + '\n').encode('utf-8'))
@@ -243,25 +251,31 @@ def pi_2_ard(command, max_retries=3, timeout=0.5):
             # Wait for ACK response from queue
             expected_ack = f"ACK:{command}"
             
-            try:
-                # Wait for message from queue (blocking with timeout)
-                ack_msg = ack_queue.get(timeout=timeout)
-                
-                # Check if this is the expected ACK
-                if ack_msg == expected_ack:
-                    if attempt > 0:
-                        print(f"[Comm] Command '{command}' acknowledged (attempt {attempt + 1})")
-                    return True
-                else:
-                    # Unexpected ACK - wrong command?
-                    print(f"[Comm] Unexpected ACK: {ack_msg} (expected {expected_ack})")
+            # Keep checking queue until we get the right ACK or timeout
+            start_time = time.time()
+            while (time.time() - start_time) < timeout:
+                try:
+                    # Wait for message from queue with shorter timeout for polling
+                    ack_msg = ack_queue.get(timeout=0.1)
                     
-            except Empty:
-                # Timeout - no ACK received
-                if attempt < max_retries - 1:
-                    print(f"[Comm] No ACK for '{command}' (attempt {attempt + 1}/{max_retries}), retrying...")
-                else:
-                    print(f"[Comm] FAILED: No ACK for '{command}' after {max_retries} attempts")
+                    # Check if this is the expected ACK
+                    if ack_msg == expected_ack:
+                        if attempt > 0:
+                            print(f"[Comm] Command '{command}' acknowledged (attempt {attempt + 1})")
+                        return True
+                    else:
+                        # Wrong ACK - likely from previous command, keep waiting
+                        print(f"[Comm] Ignoring late ACK: {ack_msg} (waiting for {expected_ack})")
+                        
+                except Empty:
+                    # No message yet, keep waiting
+                    continue
+            
+            # Timeout reached - no correct ACK received
+            if attempt < max_retries - 1:
+                print(f"[Comm] No ACK for '{command}' (attempt {attempt + 1}/{max_retries}), retrying...")
+            else:
+                print(f"[Comm] FAILED: No ACK for '{command}' after {max_retries} attempts")
         
         except Exception as e:
             print(f"[Comm] Error sending command '{command}': {e}")
