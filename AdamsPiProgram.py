@@ -68,7 +68,7 @@ def Pixidrive():
     global brushMotorOn
     global brushMotorOnTime
     global lastTargetDirection
-    
+
     count = pixy.ccc_get_blocks(100, blocks)
 
     if count > 0:
@@ -239,7 +239,7 @@ def drive():
         if pixi is True:
             Pixidrive()
         elif pixi is False:
-            if brushMotorOn:
+            if brushMotorOn is True:
                 currentTime = time.time() * 1000  # current time in milliseconds
                 if currentTime - brushMotorOnTime >= 5000:  # 5 seconds have passed
                     pi_2_ard("DBM")  # Stop Brush Motor
