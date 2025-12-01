@@ -1,60 +1,3 @@
-// ##################################
-// ##### Inital Setup ###############
-// ##################################
-
-// =============================================================
-// Ultrasonic Sensor Setup
-
-// struct UltrasonicSensor {
-//   int echoPin;
-//   int trigPin;
-//   const char* name;
-//   bool blocked; 
-
-  
-//   float Distance(int trigPin, int echoPin) {
-
-//     digitalWrite(trigPin, LOW);
-//     delayMicroseconds(2);
-//     digitalWrite(trigPin, HIGH);
-//     delayMicroseconds(10);
-//     digitalWrite(trigPin, LOW);
-
-//     float duration = pulseIn(echoPin, HIGH, 30000); // Timeout 30ms
-//     float distance = duration * 0.034 / 2; // Convert to cm
-
-//     return distance;
-//   }
-// };
-
-// // List of sensors
-// UltrasonicSensor sensors[] = {
-//   {28, 29, "L", false},
-//   {30, 31, "R", false},
-//   {32, 33, "FL", false},
-//   {34, 35, "FR", false}
-// };
-
-// #define numUSSensors 4
-
-// void UltrasonicSensorSetup() {
-//   // Ultrasonic Sensors
-//   for (int i = 0; i < numUSSensors; i++) {
-//     pinMode(sensors[i].trigPin, OUTPUT);
-//     pinMode(sensors[i].echoPin, INPUT);
-//   }
-// }
-
-// // NO MEAN RETURN 
-// void ReadAllUSDistances(float distances[]) {
-//   for (int i = 0; i < numUSSensors; i++) {
-//     distances[i] = sensors[i].Distance(sensors[i].trigPin, sensors[i].echoPin);
-//   }
-// }
-
-// =============================================================
-// Multiplexer and IR Sensor Setup - Adafruit VL53L0X - HiLetGo TCA9548A
-
 #include <Wire.h>
 #include <Adafruit_VL53L0X.h>
 
@@ -74,7 +17,7 @@ void tcaSelect(uint8_t channel) {
     Wire.beginTransmission(TCAADDR);
     Wire.write(1 << channel);
     Wire.endTransmission();
-    delay(10);
+    //delay(10);
 }
 
 void IRSensorSetup() {
@@ -120,7 +63,7 @@ void ReadAllIRDistances(int distances[]) {
 const int offsetA = 1;
 const int offsetB = -1;
 
-int speed = 150;
+int speed = 180;
 
 Motor left_motor = Motor(AIN1, AIN2, PWMA, offsetA, STBY);
 Motor right_motor = Motor(BIN1, BIN2, PWMB, offsetB, STBY); 
@@ -292,7 +235,6 @@ void DriveBlind(){
     
     brake(left_motor, right_motor);
     delay(100); // Brief pause before resuming
-    ReadAllIRDistances(IR_distances);
   }
   // 2. CHECK SIDES (Course Correction)
   else if (IR_distances[0] < wallCheckLimit) {
@@ -314,17 +256,33 @@ void DriveBlind(){
   }
 }
 
-bool yellow_Searching = false;
+// State Machine for Robot Control
+enum RobotState {
+  IDLE,
+  MOVING_FORWARD,
+  TURNING_LEFT,
+  TURNING_RIGHT,
+  MOVING_BACKWARD,
+  DRIVING_BLIND,
+  SEARCHING_YELLOW
+};
+
+RobotState currentState = IDLE;
+unsigned long stateStartTime = 0;
 int yellow_search_step = 0;
 
 void YellowSearch(){
-  //checks current stearch step to determine direction; backs up for 5, turns right for 5, turns left for 10, 
-  // right for 15, left for 20, etc. After 30 steps, defaults to turning in place to the right
+
+  //checks current search step to determine direction; backs up for 3, turns right for 5, turns left for 10, 
+  // right for 15, left for 20, etc. After 60 steps, timeout
   if(0 <= yellow_search_step && yellow_search_step <= 2){
     int IR_distances[5];
     ReadAllIRDistances(IR_distances);
     if(IR_distances[4] > 200){
       back(left_motor, right_motor, speed);
+    } else {
+      // Can't back up, skip to turning
+      yellow_search_step = 3;
     }
   }
   else if(3 <= yellow_search_step && yellow_search_step <= 7){
@@ -353,8 +311,6 @@ void YellowSearch(){
 void setup() {
   // Serial Communications
   CommsSetup();
-  // Ultrasonic Sensors
-  //UltrasonicSensorSetup();
   // IR Sensors
   IRSensorSetup();
   // Drive Motors
@@ -369,88 +325,80 @@ void setup() {
 }
 
 void loop() {
-
-  if  (isDrivingBlind){
-    yellow_Searching = false;
-    DriveBlind();
-  }
-  if (yellow_Searching){
-    isDrivingBlind = false;
-    YellowSearch();
-  }
-
+  // Process serial commands FIRST before executing states
   if (Serial.available() > 0){
     String msg = Serial.readStringUntil('\n');
     msg.trim(); // Remove any leading/trailing whitespace
-
-    isDrivingBlind = false;
-    yellow_Searching = false;
 
     // Ignore empty messages
     if (msg.length() == 0){
       return; 
     }
+    
+    // Process commands and change state
     // Search for Yellow Line
-    else if (msg == "YLL") {
+    if (msg == "YLL") {
       yellow_search_step = 0;
-      yellow_Searching = true;
+      currentState = SEARCHING_YELLOW;
+      stateStartTime = millis();
+      Serial.println("ACK:YLL");
     }
     //Move forward
     else if (msg == "MFD") {
+      currentState = MOVING_FORWARD;
       forward(left_motor, right_motor, speed);
+      Serial.println("ACK:MFD");
     }
     //Move left
     else if (msg == "ML0") { 
+      currentState = TURNING_LEFT;
       turnLeft(speed);
+      Serial.println("ACK:ML0");
     }
     //Move right
     else if (msg == "MR0") {
+      currentState = TURNING_RIGHT;
       turnRight(speed);
+      Serial.println("ACK:MR0");
     }
     //Move backward
     else if (msg == "MB0") {
+      currentState = MOVING_BACKWARD;
       back(left_motor, right_motor, speed);
+      Serial.println("ACK:MB0");
     }
     //Stop moving
     else if (msg == "MF0") {
+      currentState = IDLE;
       brake(left_motor, right_motor);
+      Serial.println("ACK:MF0");
     }
     // Activate Brush Motor
     else if (msg == "ABM") {
       BrushMotorOn();
+      Serial.println("ACK:ABM");
     }
     // Deactivate Brush Motor
     else if (msg == "DBM") {
       BrushMotorOff();
+      Serial.println("ACK:DBM");
     }
     // Drive Blind using only IR Sensors
     else if (msg == "DBI") {
-      isDrivingBlind = true;
+      currentState = DRIVING_BLIND;
+      stateStartTime = millis();
+      Serial.println("ACK:DBI");
     }
     // Lower Tray
     else if (msg == "LTY") {
       LowerTray();
+      Serial.println("ACK:LTY");
     }
     // Raise Tray
     else if (msg == "RTY") {
       RaiseTray();
+      Serial.println("ACK:RTY");
     }
-
-    // // Read US Sensor Distances
-    // else if (msg == "RUS") {
-    //   float US_distances[numUSSensors];
-    //   ReadAllUSDistances(US_distances);
-    //   Serial.println("US Distances: ");
-    //     for (int i = 0; i < numUSSensors; i++) {
-    //       Serial.print(sensors[i].name);
-    //       Serial.print("=");
-    //       Serial.print(US_distances[i]);
-    //       if (i < numUSSensors - 1){
-    //         Serial.print(", ");
-    //       }
-    //       Serial.println(); 
-    //     }
-    // }
     // Read IR Sensor Distances
     else if (msg == "RIS") {
       int IR_distances[numIRSensors];
@@ -464,9 +412,30 @@ void loop() {
         }
     }
     else {
-      Serial.println("Arduino Recieved Unknown Command");
-      isDrivingBlind = false;
-
+      Serial.println("Arduino Received Unknown Command");
     }
+  }
+  
+  // Execute current state behavior
+  switch (currentState) {
+    case DRIVING_BLIND:
+      DriveBlind();
+      break;
+      
+    case SEARCHING_YELLOW:
+      YellowSearch();
+      break;
+      
+    case IDLE:
+      // Do nothing, motors already stopped
+      break;
+      
+    case MOVING_FORWARD:
+    case TURNING_LEFT:
+    case TURNING_RIGHT:
+    case MOVING_BACKWARD:
+      // These are handled by the command that set the state
+      // Motors continue in that direction until new command received
+      break;
   }
 }

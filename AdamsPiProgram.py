@@ -128,7 +128,6 @@ def pi_2_ard(command):
     try:
         ser.write((command + '\n').encode('utf-8')) # send command to Arduino
         ser.flush()                                 # ensure command is sent
-        time.sleep(0.5)                             # brief pause to allow Arduino to process
     
     except Exception as e:                          # Catch any serial communication errors
         print(f"Error sending command to Arduino: {e}")
@@ -229,34 +228,67 @@ def UserControl():
 def drive():
     global brushMotorOn
     global brushMotorOnTime
-    yellowFlagLast = None  # None, True, or False
+    
+    # State tracking with debouncing
+    yellowStateLast = None  # None, True, or False
+    yellow_detection_buffer = []
+    BUFFER_SIZE = 3  # Require 3 consecutive detections to confirm state change
+    last_command_time = 0
+    COMMAND_DEBOUNCE = 0.5  # Minimum time between commands (seconds)
+    
     pixi = None
 
     while True:
+        current_time = time.time()
+        
         #pixi = Pixicam()
         pixi = False
         img = capture_image()
-        yellowFlagCurrent = process_image(img)
+        yellow_detected_now = process_image(img)
+        
+        # Add to detection buffer for hysteresis
+        yellow_detection_buffer.append(yellow_detected_now)
+        if len(yellow_detection_buffer) > BUFFER_SIZE:
+            yellow_detection_buffer.pop(0)
+        
         print(f"Pixy Detected: {pixi}")
-        print(f"Yellow Detected: {yellowFlagCurrent}")
+        print(f"Yellow Detected (raw): {yellow_detected_now}, Buffer: {yellow_detection_buffer}")
         
 
         if pixi is True:
             Pixidrive()
         elif pixi is False:
+            # Handle brush motor timeout
             if brushMotorOn is True:
                 currentTime = time.time() * 1000  # current time in milliseconds
                 if currentTime - brushMotorOnTime >= 5000:  # 5 seconds have passed
                     pi_2_ard("DBM")  # Stop Brush Motor
                     brushMotorOn = False
-            if yellowFlagCurrent is True and yellowFlagLast is not True:
-                pi_2_ard("DBI")
-                print("Sent DBI (yellow acquired)")
-            elif yellowFlagCurrent is False and yellowFlagLast is True:
-                pi_2_ard("YLL")
-                print("Sent YLL (yellow lost)")
+            
+            # Only process state changes if we have enough samples and enough time has passed
+            if len(yellow_detection_buffer) == BUFFER_SIZE:
+                # Determine stable state (all True = yellow present, all False = yellow lost)
+                if all(yellow_detection_buffer):
+                    yellowStateNow = True
+                elif not any(yellow_detection_buffer):
+                    yellowStateNow = False
+                else:
+                    # Mixed readings - keep previous state
+                    yellowStateNow = yellowStateLast
+                
+                # Check if state changed and enough time has passed
+                if yellowStateNow != yellowStateLast and (current_time - last_command_time) >= COMMAND_DEBOUNCE:
+                    if yellowStateNow is True:
+                        pi_2_ard("DBI")
+                        print("=== YELLOW CONFIRMED - Switching to Drive Blind Mode ===")
+                        last_command_time = current_time
+                    elif yellowStateNow is False and yellowStateLast is True:
+                        pi_2_ard("YLL")
+                        print("=== YELLOW LOST - Initiating Search Pattern ===")
+                        last_command_time = current_time
+                    
+                    yellowStateLast = yellowStateNow
 
-        yellowFlagLast = yellowFlagCurrent
         time.sleep(0.1)
 
 def main():
