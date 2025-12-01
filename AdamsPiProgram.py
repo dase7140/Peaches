@@ -233,7 +233,8 @@ def drive():
     pixi = None
 
     while True:
-        pixi = Pixicam()
+        #pixi = Pixicam()
+        pixi = False
         img = capture_image()
         yellowFlagCurrent = process_image(img)
         print(f"Pixy Detected: {pixi}")
@@ -241,7 +242,7 @@ def drive():
         
 
         if pixi is True:
-            Pixidrive()
+            #Pixidrive()
         elif pixi is False:
             if brushMotorOn is True:
                 currentTime = time.time() * 1000  # current time in milliseconds
@@ -266,8 +267,8 @@ def main():
     reader = threading.Thread(target = serial_reader, daemon=True)
     reader.start()
 
-    UserControl()
-    #drive()
+    #UserControl()
+    drive()
     # capture_image()
     # while True:
     #     Pixidrive()
