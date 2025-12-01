@@ -321,7 +321,10 @@ void YellowSearch(){
   //checks current stearch step to determine direction; backs up for 5, turns right for 5, turns left for 10, 
   // right for 15, left for 20, etc. After 30 steps, defaults to turning in place to the right
   if(0 <= yellow_search_step && yellow_search_step <= 2){
-    back(left_motor, right_motor, speed);
+    ReadAllIRDistances(IR_distances);
+    if(IR_distances[4] > 200){
+      back(left_motor, right_motor, speed);
+    }
   }
   else if(3 <= yellow_search_step && yellow_search_step <= 7){
     turnRight(speed);
