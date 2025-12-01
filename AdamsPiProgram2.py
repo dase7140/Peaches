@@ -16,6 +16,10 @@ from pixy import *
 ########################
 #1 = red, 2 = green 3 = blue 4= yellow 5 = purple (GRAVEL)  6 = pink (RAMP)
 
+# Note: Pixy library may print "error: no response" to stdout if USB communication fails.
+# This is a library-level message and cannot be suppressed from Python.
+# The Pixicam() function handles errors gracefully by returning False.
+
 pixy.init()
 pixy.change_prog("color_connected_components")
 
@@ -38,13 +42,27 @@ blocks = BlockArray(100)
 frame = 0
 
 def Pixicam():
-    count = pixy.ccc_get_blocks(100, blocks)
-    if count > 0:
-        for i in range(count):
-            if blocks[i].m_signature == target_signature:
-                return True
-        return False  # No matching signature found
-    else:
+    """
+    Queries Pixy camera for color blocks matching target signature.
+    
+    Returns:
+        bool - True if target detected, False otherwise
+        
+    Note: Pixy library may print "error: no response" to stdout if
+    camera communication fails. This is a library message, not from our code.
+    """
+    try:
+        count = pixy.ccc_get_blocks(100, blocks)
+        if count > 0:
+            for i in range(count):
+                if blocks[i].m_signature == target_signature:
+                    return True
+            return False  # No matching signature found
+        else:
+            return False
+    except Exception as e:
+        # Pixy communication error - return False to avoid crashing
+        # (Pixy library will already have printed error message)
         return False
 
 
@@ -690,6 +708,10 @@ def drive():
     search_start_time = None
     SEARCH_TIMEOUT = 3.0  # seconds - max time to search before stopping
     
+    # Pixy camera error tracking
+    pixy_error_count = 0
+    MAX_PIXY_ERRORS = 10  # Warn after this many consecutive errors
+    
     try:
         while True:
             # Check for user stop command
@@ -710,7 +732,18 @@ def drive():
                     time.sleep(0.5)
             
             # ===== PIXICAM TARGET DETECTION AND BRUSH MOTOR CONTROL =====
-            target_detected = Pixicam()
+            try:
+                target_detected = Pixicam()
+                pixy_error_count = 0  # Reset error count on successful read
+            except Exception as e:
+                # Pixy error - assume no target detected
+                target_detected = False
+                pixy_error_count += 1
+                
+                # Warn if errors persist
+                if pixy_error_count == MAX_PIXY_ERRORS:
+                    print(f"[Pixy] WARNING: {MAX_PIXY_ERRORS} consecutive errors - camera may be disconnected")
+                    print("[Pixy] Continuing without target detection...")
             
             # Target detected - activate brush motor
             if target_detected:
@@ -718,12 +751,10 @@ def drive():
                     print("[Drive] Target detected - activating brush motor")
                     pi_2_ard("ABM")
                     brush_motor_active = True
-                    target_previously_detected = True
                 # Cancel any pending shutdown timer only if brush motor is active
                 # This prevents flickering detections from resetting the timer
                 if brush_motor_active:
                     brush_motor_off_time = None
-                    target_previously_detected = True
             
             # Target lost - start shutdown timer (only if motor was active)
             elif not target_detected and brush_motor_active:
