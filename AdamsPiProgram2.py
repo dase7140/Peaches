@@ -432,26 +432,29 @@ def find_yellow_centroid(mask):
 
 def compute_error(centroid_y, image_height):
     """
-    Computes the vertical error between the yellow centroid and image center.
+    Computes the vertical error between the yellow centroid and the target position.
     Camera is mounted UPSIDE DOWN on the LEFT side of the robot.
+    
+    Target position is the center of the TOP HALF of the image (at 1/4 from top).
     
     Args:
         centroid_y: int - Y coordinate of the yellow centroid
         image_height: int - Height of the camera frame in pixels
         
     Returns:
-        error: float - Vertical offset from center
+        error: float - Vertical offset from target position
                       Positive = yellow is too far (robot needs to turn left)
                       Negative = yellow is too close (robot needs to turn right)
-                      Zero = yellow is centered (go straight)
+                      Zero = yellow is at target position (go straight)
     """
-    # Calculate the center y-coordinate of the image
-
-    image_center_y = image_height / 2
+    # Calculate the target y-coordinate: center of the top half of image
+    # Top half is from y=0 to y=image_height/2
+    # Center of top half is at y=image_height/4
+    target_y = image_height / 4
     
-    # Compute error: positive means yellow is above center in upside-down view
+    # Compute error: positive means yellow is above target in upside-down view
     # Since camera is upside down, "above" in image = "far" in real world
-    error = centroid_y - image_center_y
+    error = centroid_y - target_y
     
     return error
 
@@ -668,8 +671,8 @@ def reposition():
     front_right_capped = cap_distance(ir_data.front_right)
     right_capped = cap_distance(ir_data.right)
     
-    left_area = front_left_capped + left_capped
-    right_area = front_right_capped + right_capped
+    left_area = front_left_capped*2 + left_capped
+    right_area = front_right_capped*2 + right_capped
     
     print(f"[Reposition] Left area: {left_area}mm (FL:{front_left_capped} + L:{left_capped})")
     print(f"[Reposition] Right area: {right_area}mm (FR:{front_right_capped} + R:{right_capped})")
@@ -682,10 +685,6 @@ def reposition():
         print(f"[Reposition] Both sides blocked (L:{left_area}, R:{right_area}) - attempting large turn")
         pi_2_ard("ML2")  # Turn left
         time.sleep(0.6)  # Turn for 600ms 
-    elif abs(left_area - right_area) < MIN_AREA_DIFFERENCE:
-        print(f"[Reposition] Areas nearly equal ({left_area} vs {right_area}) - slight right turn")
-        pi_2_ard("MR2")  # Default to right when tied
-        time.sleep(0.2)  # Shorter turn
     elif left_area > right_area:
         print(f"[Reposition] Turning LEFT (left area larger by {left_area - right_area}mm)")
         pi_2_ard("ML2")  # Turn left at speed 2
