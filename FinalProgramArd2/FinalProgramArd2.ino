@@ -207,7 +207,7 @@ void veerRight(int leftSpd, int rightSpd){
 }
 
 // Arduino Safety Stop System
-const int CRITICAL_STOP_DISTANCE = 300;  // mm - Emergency stop threshold
+const int CRITICAL_STOP_DISTANCE = 150;  // mm - Emergency stop threshold
 const unsigned long GRACE_PERIOD = 5000; // ms - 5 seconds to reposition after Pi override
 unsigned long graceStartTime = 0;        // When Pi override began
 bool safetyStopActive = false;           // True when Arduino has stopped due to obstacle
