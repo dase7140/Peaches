@@ -61,8 +61,14 @@ def Pixicam():
     else:
         return False
 
+brushMotorOn = False
+brushMotorOnTime = 0
 
 def Pixidrive():
+    global brushMotorOn
+    global brushMotorOnTime
+    global lastTargetDirection
+    
     count = pixy.ccc_get_blocks(100, blocks)
 
     if count > 0:
@@ -74,7 +80,10 @@ def Pixidrive():
 
             if abs(error) <= deadband:
                 print("Move Forward")
+                pi_2_ard("ABM")
                 pi_2_ard("MFD")
+                brushMotorOn = True
+                brushMotorOnTime = time.time() * 1000  # current time in milliseconds
                 lastTargetDirection = 0 #debugging
             elif error < 0:
                 print("Turn Left")
@@ -84,9 +93,6 @@ def Pixidrive():
                 print("Turn Right")
                 pi_2_ard("MR0")
                 lastTargetDirection = 1
-        else:
-            print("No target found")
-            pi_2_ard("MF0")
     else:
         print(f"Count =  {count}")
         pi_2_ard("MF0")
@@ -233,6 +239,11 @@ def drive():
         if pixi is True:
             Pixidrive()
         elif pixi is False:
+            if brushMotorOn:
+                currentTime = time.time() * 1000  # current time in milliseconds
+                if currentTime - brushMotorOnTime >= 5000:  # 5 seconds have passed
+                    pi_2_ard("DBM")  # Stop Brush Motor
+                    brushMotorOn = False
             if current and last is not True:
                 pi_2_ard("DBI")
                 print("Sent DBI (yellow acquired)")
