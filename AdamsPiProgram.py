@@ -242,7 +242,7 @@ def drive():
         
 
         if pixi is True:
-            #Pixidrive()
+            Pixidrive()
         elif pixi is False:
             if brushMotorOn is True:
                 currentTime = time.time() * 1000  # current time in milliseconds
