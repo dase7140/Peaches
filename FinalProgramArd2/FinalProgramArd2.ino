@@ -7,9 +7,9 @@
 
 Adafruit_VL53L0X lox[5];  // for up to 5 sensors
 
-// Front Left - 2
-// Front Right - 1
 // Left - 0
+// Front Right - 1
+// Front Left - 2
 // Right - 3  
 // Back - 4
 

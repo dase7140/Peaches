@@ -60,10 +60,30 @@ cv2.createTrackbar("Sat Max","TrackBars",240,255,empty)
 cv2.createTrackbar("Val Min","TrackBars",153,255,empty)
 cv2.createTrackbar("Val Max","TrackBars",255,255,empty)
 
+MORPH_KERNEL_SIZE = 5       # Size of structuring element (5x5 is a good start)
+MORPH_OPEN_ITERATIONS = 2   # Number of opening operations (removes small noise)
+MORPH_CLOSE_ITERATIONS = 3  # Number of closing operations (fills small gaps)
+
+def clean_mask(mask):
+    # Create structuring element (kernel) for morphological operations
+    kernel = np.ones((MORPH_KERNEL_SIZE, MORPH_KERNEL_SIZE), np.uint8)
+    
+    # Opening: Erosion followed by Dilation
+    # Removes small white noise/spots while preserving larger shapes
+    opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=MORPH_OPEN_ITERATIONS)
+    
+    # Closing: Dilation followed by Erosion
+    # Fills small black holes inside white regions and connects nearby regions
+    cleaned_mask = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=MORPH_CLOSE_ITERATIONS)
+    
+    return cleaned_mask
+
+
 while True:
-  img = cv2.imread(path)
-  img= cv2.resize(img, (300, 300))
+  img = capture_image()
+  img = cv2.GaussianBlur(img, (5, 5), 0)
   imgHSV = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
+
   h_min = cv2.getTrackbarPos("Hue Min","TrackBars")
   h_max = cv2.getTrackbarPos("Hue Max", "TrackBars")
   s_min = cv2.getTrackbarPos("Sat Min", "TrackBars")
@@ -74,6 +94,7 @@ while True:
   lower = np.array([h_min,s_min,v_min])
   upper = np.array([h_max,s_max,v_max])
   mask = cv2.inRange(imgHSV,lower,upper)
+  mask = clean_mask(mask)
   imgResult = cv2.bitwise_and(img,img,mask=mask)
 
 

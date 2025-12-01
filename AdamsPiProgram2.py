@@ -11,8 +11,9 @@ from ctypes import *
 from pixy import *
 import time
 
-
-# Pixy Setup
+########################
+# Pixycam Setup
+########################
 #1 = red, 2 = green 3 = blue 4= yellow 5 = purple (GRAVEL)  6 = pink (RAMP)
 centerX = 157
 deadband = 60
@@ -36,18 +37,6 @@ class Blocks(Structure):
 
 blocks = BlockArray(100)
 frame = 0
-
-def seeColor(sig, count):
-    for i in range(count):
-        if blocks[i].m_signature == sig:
-            return True
-    return False
-
-def getTargetX(sig, count):
-    for i in range(count):
-        if blocks[i].m_signature == sig:
-            return blocks[i].m_x
-    return -1
 
 def Pixicam():
     count = pixy.ccc_get_blocks(100, blocks)
@@ -75,7 +64,6 @@ estop_triggered = False
 serial_thread = None
 user_stop_requested = False
 stdin_thread = None
-
 
 def serial_reader():
     """
@@ -172,14 +160,14 @@ def stop_serial_reader():
 
 
 
-def stdin_monitor():
+def User_Input():
     """
     Monitors stdin for user commands in a separate thread.
     Specifically watches for 'STOP' command to emergency stop the robot.
     """
     global user_stop_requested
     
-    print("[STDIN Monitor] Thread started - Type 'STOP' at any time to emergency stop")
+    print("[User Input] Thread started - Type 'STOP' at any time to emergency stop")
     
     while not user_stop_requested:
         try:
@@ -191,14 +179,14 @@ def stdin_monitor():
         except (EOFError, KeyboardInterrupt):
             break
         except Exception as e:
-            print(f"[STDIN Monitor] Error: {e}")
+            print(f"[User Input] Error: {e}")
             time.sleep(0.1)
     
-    print("[STDIN Monitor] Thread stopped")
+    print("[User Input] Thread stopped")
 
 
 
-def start_stdin_monitor():
+def start_User_Input():
     """
     Starts the stdin monitor thread.
     Allows user to type 'STOP' to emergency stop the robot.
@@ -206,16 +194,16 @@ def start_stdin_monitor():
     global user_stop_requested, stdin_thread
     
     if stdin_thread is not None and stdin_thread.is_alive():
-        print("[STDIN Monitor] Thread already running")
+        print("[User Input] Thread already running")
         return
     
     user_stop_requested = False
-    stdin_thread = threading.Thread(target=stdin_monitor, daemon=True)
+    stdin_thread = threading.Thread(target=User_Input, daemon=True)
     stdin_thread.start()
 
 
 
-def stop_stdin_monitor():
+def stop_User_Input():
     """
     Signals the stdin monitor thread to stop.
     """
@@ -225,7 +213,64 @@ def stop_stdin_monitor():
         return
     
     user_stop_requested = True
-    # Note: Thread will exit on its own when it reads the flag
+
+
+# Send command from Pi to Arduino with ACK waiting and retry logic
+def pi_2_ard(command, max_retries=3, timeout=0.1):
+    """
+    Sends a command to Arduino and waits for acknowledgment.
+    Retries if no ACK is received within timeout period.
+    
+    Args:
+        command: str - Command to send to Arduino
+        max_retries: int - Maximum number of retry attempts (default: 3)
+        timeout: float - Seconds to wait for ACK before retrying (default: 0.1)
+        
+    Returns:
+        bool - True if ACK received, False if all retries failed
+    """
+    for attempt in range(max_retries):
+        try:
+            # Clear input buffer before sending command
+            ser.reset_input_buffer()
+            
+            # Send command to Arduino
+            ser.write((command + '\n').encode('utf-8'))
+            ser.flush()
+            
+            # Wait for ACK response
+            start_time = time.time()
+            expected_ack = f"ACK:{command}"
+            
+            while (time.time() - start_time) < timeout:
+                if ser.in_waiting > 0:
+                    line = ser.readline().decode('utf-8', errors='replace').strip()
+                    
+                    # Check if this is the expected ACK
+                    if line == expected_ack:
+                        if attempt > 0:
+                            print(f"[Comm] Command '{command}' acknowledged (attempt {attempt + 1})")
+                        return True
+                    
+                    # If it's a different message, keep waiting
+                    elif line and not line.startswith("ACK:"):
+                        # Non-ACK message, print it
+                        print(f"[Ard] {line}")
+                
+                time.sleep(0.01)  # Small delay to avoid busy waiting
+            
+            # Timeout reached, no ACK received
+            if attempt < max_retries - 1:
+                print(f"[Comm] No ACK for '{command}' (attempt {attempt + 1}/{max_retries}), retrying...")
+            else:
+                print(f"[Comm] FAILED: No ACK for '{command}' after {max_retries} attempts")
+        
+        except Exception as e:
+            print(f"[Comm] Error sending command '{command}': {e}")
+            if attempt < max_retries - 1:
+                time.sleep(0.1)  # Brief delay before retry
+    
+    return False  # All retries failed
 
 
 
@@ -342,6 +387,7 @@ def find_yellow_centroid(mask):
 def compute_error(centroid_y, image_height):
     """
     Computes the vertical error between the yellow centroid and image center.
+    Camera is mounted UPSIDE DOWN on the LEFT side of the robot.
     
     Args:
         centroid_y: int - Y coordinate of the yellow centroid
@@ -349,67 +395,56 @@ def compute_error(centroid_y, image_height):
         
     Returns:
         error: float - Vertical offset from center
-                      Positive = yellow is above center
-                      Negative = yellow is below center
-                      Zero = yellow is centered
+                      Positive = yellow is too far (robot needs to turn left)
+                      Negative = yellow is too close (robot needs to turn right)
+                      Zero = yellow is centered (go straight)
     """
-    # Calculate the center x-coordinate of the image
+    # Calculate the center y-coordinate of the image
     image_center_y = image_height / 2
     
-    # Compute error: positive means yellow is above center, negative means below
+    # Compute error: positive means yellow is above center in upside-down view
+    # Since camera is upside down, "above" in image = "far" in real world
     error = centroid_y - image_center_y
     
     return error
 
 
+# Yellow Line Following Control Parameters
+KP = 0.5                    # Proportional gain for steering
+ERROR_THRESHOLD = 50        # Deadband in pixels - go straight if error < this
+BASE_SPEED = 2              # Default speed level (1-5)
+TURN_SPEED = 2              # Speed when turning to follow line
 
-# Steering Control Parameters
-ERROR_THRESHOLD = 50        # Pixels - deadband for "centered" (adjust based on testing)
-MAX_ERROR = 320             # Maximum possible error (half of image width)
-BASE_SPEED = 180            # Base forward speed (matches Arduino speed variable)
-MIN_TURN_SPEED = 100        # Minimum speed for gentle turns
-MAX_TURN_SPEED = 180        # Maximum speed for sharp turns
 
-# Proportional gain for steering correction
-STEERING_KP = 0.5           # Adjust this to change steering responsiveness
-
-def camera_based_steering(error):
+def yellow_line_steering(error):
     """
-    Converts the yellow centroid error into motor control commands.
-    Returns the appropriate command without sending it.
+    Converts centroid error to motor steering command.
+    
+    Camera mounted upside down on LEFT side:
+    - Positive error = yellow too far (top of upside-down image) → turn LEFT
+    - Negative error = yellow too close (bottom of upside-down image) → turn RIGHT
+    - Small error = go straight FORWARD
     
     Args:
-        error: float - Vertical offset from center
-                      Positive = yellow is above center (turn left)
-                      Negative = yellow is below center (turn right)
-                      
+        error: float - Error from compute_error()
+        
     Returns:
-        command: str - The command to send to Arduino
+        str - Motor command ("MF2", "ML2", "MR2", etc.)
     """
-    
-    # Check if yellow is centered (within deadband)
+    # Within deadband - go straight
     if abs(error) < ERROR_THRESHOLD:
-        # Yellow is centered - drive straight forward
-        command = "MF1"
-        return command
+        return f"MF{BASE_SPEED}"
     
-    # Calculate turn intensity based on error magnitude
-    # Normalize error to 0.0 - 1.0 range
-    error_normalized = min(abs(error) / MAX_ERROR, 1.0)
+    # Positive error - yellow is too far, turn LEFT to get closer
+    elif error > 0:
+        return f"ML{TURN_SPEED}"
     
-    # Calculate turn speed using proportional control
-    turn_intensity = error_normalized * STEERING_KP
-    turn_intensity = min(turn_intensity, 1.0)  # Cap at 1.0
-    
-    # Determine direction - use turn_intensity to select speed level
-    if error > 0:
-        # Yellow is to the RIGHT - turn right
-        command = "MR1"
-        return command
+    # Negative error - yellow is too close, turn RIGHT to move away
     else:
-        # Yellow is to the LEFT - turn left
-        command = "ML1"
-        return command
+        return f"MR{TURN_SPEED}"
+
+
+
 
 
 
@@ -419,7 +454,7 @@ def camera_based_steering(error):
 
 # IR Sensor Configuration
 IR_SENSOR_COUNT = 5
-IR_SENSOR_NAMES = ["Left", "Front_Left", "Front_Right", "Right", "Back"]
+IR_SENSOR_NAMES = ["Left", "Front_Right", "Front_Left", "Right", "Back"]
 
 # IR sensor index mapping (matches Arduino)
 # Arduino channels: Left=0, Front_Right=1, Front_Left=2, Right=3, Back=4
@@ -467,7 +502,7 @@ def read_ir_sensors():
         sensor_data.timestamp = time.time()
         
         # Wait for and parse compact IR response: "IR:val0,val1,val2,val3,val4"
-        timeout = time.time() + 1.0  # 1 second timeout (faster than before)
+        timeout = time.time() + 1.0  # 1 second timeout
         
         while time.time() < timeout:
             if ser.in_waiting > 0:
@@ -520,213 +555,6 @@ def read_ir_sensors():
 ###################
 
 
-# Obstacle Avoidance Parameters
-CRITICAL_DISTANCE = 150      # mm - Emergency stop distance
-WARNING_DISTANCE = 250       # mm - Slow down and prepare to turn
-SIDE_WARNING_DISTANCE = 180  # mm - Side sensors warning threshold
-BACK_WARNING_DISTANCE = 120  # mm - Back sensor threshold (for reversing)
-
-class AvoidanceAction:
-    """Class to hold obstacle avoidance decisions"""
-    def __init__(self):
-        self.override = False       # Should we override yellow-following?
-        self.command = None         # Command to send to Arduino
-        self.reason = ""            # Why we're overriding (for logging)
-        self.priority = 0           # Priority level (higher = more urgent)
-
-def avoid_obstacles(ir_data):
-    """
-    Analyzes IR sensor data to determine if obstacle avoidance is needed.
-    
-    Args:
-        ir_data: IRSensorData object with current sensor readings
-        
-    Returns:
-        AvoidanceAction: Object containing:
-            - override: bool - True if obstacle avoidance should override camera
-            - command: str - Arduino command to execute (or None)
-            - reason: str - Explanation for logging
-            - priority: int - Urgency level (0=none, 1=warning, 2=critical)
-    """
-    action = AvoidanceAction()
-    
-    # Check if sensor data is valid
-    if not ir_data or not ir_data.valid:
-        print("[Avoidance] Invalid sensor data - no override")
-        return action
-    
-    # PRIORITY 1: CRITICAL FRONT OBSTACLES (Emergency Stop)
-    if ir_data.front_left < CRITICAL_DISTANCE or ir_data.front_right < CRITICAL_DISTANCE:
-        action.override = True
-        action.command = "MF0"  # Stop
-        action.reason = f"CRITICAL: Front obstacle detected (FL={ir_data.front_left}mm, FR={ir_data.front_right}mm)"
-        action.priority = 3
-        print(f"[Avoidance] {action.reason} -> STOP")
-        return action
-    
-    # PRIORITY 2: FRONT WARNING (Slow down and turn away from closest obstacle)
-    if ir_data.front_left < WARNING_DISTANCE or ir_data.front_right < WARNING_DISTANCE:
-        action.override = True
-        action.priority = 2
-        
-        # Determine which side has more clearance
-        if ir_data.front_left < ir_data.front_right:
-            # Left side is closer, turn right
-            action.command = "MR0"
-            action.reason = f"WARNING: Front-left obstacle (FL={ir_data.front_left}mm) -> Turn RIGHT"
-        else:
-            # Right side is closer, turn left
-            action.command = "ML0"
-            action.reason = f"WARNING: Front-right obstacle (FR={ir_data.front_right}mm) -> Turn LEFT"
-        
-        print(f"[Avoidance] {action.reason}")
-        return action
-    
-    # PRIORITY 3: SIDE OBSTACLES (Gentle steering correction)
-    if ir_data.left < SIDE_WARNING_DISTANCE:
-        action.override = True
-        action.command = "MR0"  # Turn right to avoid left obstacle
-        action.reason = f"Side obstacle LEFT (L={ir_data.left}mm) -> Steer RIGHT"
-        action.priority = 1
-        print(f"[Avoidance] {action.reason}")
-        return action
-    
-    if ir_data.right < SIDE_WARNING_DISTANCE:
-        action.override = True
-        action.command = "ML0"  # Turn left to avoid right obstacle
-        action.reason = f"Side obstacle RIGHT (R={ir_data.right}mm) -> Steer LEFT"
-        action.priority = 1
-        print(f"[Avoidance] {action.reason}")
-        return action
-    
-    # PRIORITY 4: BACK OBSTACLE (Stop reversing if backing up)
-    if ir_data.back < BACK_WARNING_DISTANCE:
-        action.override = True
-        action.command = "MF0"  # Stop
-        action.reason = f"Back obstacle detected (B={ir_data.back}mm) -> STOP"
-        action.priority = 2
-        print(f"[Avoidance] {action.reason}")
-        return action
-    
-    # No obstacles detected - allow normal yellow-following operation
-    action.override = False
-    action.command = None
-    action.reason = "Clear path"
-    action.priority = 0
-    
-    return action
-
-
-def decide_motion(camera_command, ir_data):
-    """
-    Unified control function that determines the robot's motion.
-    Prioritizes obstacle avoidance over camera-based yellow following.
-    
-    Args:
-        camera_command: str - Command from camera-based steering (e.g., "MFD", "ML0", "MR0")
-        ir_data: IRSensorData - Current IR sensor readings
-        
-    Returns:
-        dict: {
-            'command': str - Final command to send to Arduino,
-            'source': str - Either 'obstacle_avoidance' or 'camera_steering',
-            'reason': str - Explanation of the decision,
-            'priority': int - Priority level (0=normal, 1-3=avoidance)
-        }
-    """
-    
-    # First, check for obstacles (highest priority)
-    avoidance = avoid_obstacles(ir_data)
-    
-    # If obstacle avoidance needs to override
-    if avoidance.override:
-        decision = {
-            'command': avoidance.command,
-            'source': 'obstacle_avoidance',
-            'reason': avoidance.reason,
-            'priority': avoidance.priority
-        }
-        print(f"[Decision] OVERRIDE: {avoidance.reason}")
-        return decision
-    
-    # No obstacles detected - use camera-based steering
-    decision = {
-        'command': camera_command,
-        'source': 'camera_steering',
-        'reason': 'Following yellow line',
-        'priority': 0
-    }
-    print(f"[Decision] Camera control: {camera_command}")
-    return decision
-
-
-
-# Functions for Serial Communication
-# Send command from Pi to Arduino with ACK waiting and retry logic
-def pi_2_ard(command, max_retries=3, timeout=0.1):
-    """
-    Sends a command to Arduino and waits for acknowledgment.
-    Retries if no ACK is received within timeout period.
-    
-    Args:
-        command: str - Command to send to Arduino
-        max_retries: int - Maximum number of retry attempts (default: 3)
-        timeout: float - Seconds to wait for ACK before retrying (default: 0.1)
-        
-    Returns:
-        bool - True if ACK received, False if all retries failed
-    """
-    for attempt in range(max_retries):
-        try:
-            # Clear input buffer before sending command
-            ser.reset_input_buffer()
-            
-            # Send command to Arduino
-            ser.write((command + '\n').encode('utf-8'))
-            ser.flush()
-            
-            # Wait for ACK response
-            start_time = time.time()
-            expected_ack = f"ACK:{command}"
-            
-            while (time.time() - start_time) < timeout:
-                if ser.in_waiting > 0:
-                    line = ser.readline().decode('utf-8', errors='replace').strip()
-                    
-                    # Check if this is the expected ACK
-                    if line == expected_ack:
-                        if attempt > 0:
-                            print(f"[Comm] Command '{command}' acknowledged (attempt {attempt + 1})")
-                        return True
-                    
-                    # If it's a different message, keep waiting
-                    elif line and not line.startswith("ACK:"):
-                        # Non-ACK message, print it
-                        print(f"[Ard] {line}")
-                
-                time.sleep(0.01)  # Small delay to avoid busy waiting
-            
-            # Timeout reached, no ACK received
-            if attempt < max_retries - 1:
-                print(f"[Comm] No ACK for '{command}' (attempt {attempt + 1}/{max_retries}), retrying...")
-            else:
-                print(f"[Comm] FAILED: No ACK for '{command}' after {max_retries} attempts")
-        
-        except Exception as e:
-            print(f"[Comm] Error sending command '{command}': {e}")
-            if attempt < max_retries - 1:
-                time.sleep(0.1)  # Brief delay before retry
-    
-    return False  # All retries failed
-
-
-def get_user_input():
-    try:
-        command = input("Waiting for command: ")
-        return command
-    except EOFError:
-        return "EXIT"
-
 
 def wait_for_start():
     while True:
@@ -742,308 +570,194 @@ def wait_for_start():
             return True
         print('Not started. Please type "Start" or "EXIT".')
 
-def UserControl():
-    while True:
-        command = get_user_input()
-        if not command:
-            continue
-        if command.upper() == "EXIT":
-            print("Exiting program.")
-            break
-        success = pi_2_ard(command)
-        if not success:
-            print(f"[UserControl] Warning: Command '{command}' failed to receive ACK")
-        time.sleep(0.05)  # Small delay to avoid overwhelming the serial buffer
 
 
-
-# Debug Configuration Flags
-DEBUG_ENABLED = True              # Master debug switch
-DEBUG_SHOW_MASK = True           # Show binary mask window
-DEBUG_SHOW_CLEANED = True        # Show cleaned mask window
-DEBUG_SHOW_FRAME = True          # Show original frame with annotations
-DEBUG_PRINT_HSV = False          # Print HSV threshold info
-DEBUG_PRINT_STEERING = True      # Print steering decisions
-DEBUG_PRINT_IR = True            # Print IR sensor readings
-DEBUG_SAVE_FRAMES = False        # Save debug frames to disk
-DEBUG_FRAME_SAVE_PATH = "debug_frames/"  # Path for saved frames
-
-# Create debug frame directory if needed
-if DEBUG_SAVE_FRAMES:
-    import os
-    os.makedirs(DEBUG_FRAME_SAVE_PATH, exist_ok=True)
-
-def debug_visualize(frame, hsv, mask, cleaned, found, cx, cy, error, camera_cmd, decision, frame_count):
+def reposition():
     """
-    Displays debug visualization windows showing processing pipeline.
+    Intelligent repositioning function when obstacle detected.
     
-    Args:
-        frame: Original BGR frame
-        hsv: HSV converted frame
-        mask: Raw yellow mask
-        cleaned: Cleaned yellow mask
-        found: Whether yellow was detected
-        cx, cy: Centroid coordinates
-        error: Steering error
-        camera_cmd: Camera steering command
-        decision: Final motion decision
-        frame_count: Current frame number
+    Strategy:
+    1. Read IR sensors to assess surroundings
+    2. If back is clear (>100mm), reverse to create space
+    3. Calculate left area (front_left + left) vs right area (front_right + right)
+    4. Turn towards the direction with more clearance
+    
+    Returns:
+        bool - True if repositioning succeeded, False if failed
     """
-    if not DEBUG_ENABLED:
-        return
+    print("[Reposition] Starting repositioning maneuver")
     
-    image_height, image_width = frame.shape[:2]
+    # Step 1: Read current sensor values
+    ir_data = read_ir_sensors()
+    if ir_data is None or not ir_data.valid:
+        print("[Reposition] Failed to read IR sensors")
+        return False
     
-    # Create annotated frame copy
-    annotated_frame = frame.copy()
+    print(f"[Reposition] Sensor readings: {ir_data}")
     
-    # Draw image center line (reference)
-    center_y = image_height // 2
-    cv2.line(annotated_frame, (0, center_y), (image_width, center_y), (0, 255, 255), 2)
-    cv2.putText(annotated_frame, "CENTER", (10, center_y - 10), 
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+    # Helper function to cap sensor readings (VL53L0X returns 8190+ when out of range)
+    def cap_distance(distance, max_distance=2000):
+        """Cap distance readings to handle out-of-range sensors"""
+        if distance >= 8000:  # VL53L0X out-of-range indicator
+            return max_distance
+        return min(distance, max_distance)
     
-    # Draw centroid and error if yellow found
-    if found:
-        # Draw centroid as circle
-        cv2.circle(annotated_frame, (cx, cy), 10, (0, 255, 0), -1)
-        cv2.putText(annotated_frame, f"({cx},{cy})", (cx + 15, cy), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        
-        # Draw line from center to centroid
-        cv2.line(annotated_frame, (cx, center_y), (cx, cy), (255, 0, 255), 2)
-        
-        # Display error value
-        error_text = f"Error: {error:.1f}px"
-        cv2.putText(annotated_frame, error_text, (10, 30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    # Step 2: Check if back is clear and reverse if possible
+    BACK_CLEAR_THRESHOLD = 100  # mm
+    back_distance = cap_distance(ir_data.back)
+    
+    if back_distance > BACK_CLEAR_THRESHOLD:
+        print(f"[Reposition] Back clear ({back_distance}mm) - reversing")
+        pi_2_ard("MB2")  # Reverse at speed 2
+        time.sleep(0.2)  # Reverse for 200ms
+        pi_2_ard("MF0")  # Stop motors
+        time.sleep(0.1)
     else:
-        cv2.putText(annotated_frame, "NO YELLOW DETECTED", (10, 30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        print(f"[Reposition] Back blocked ({back_distance}mm) - skipping reverse")
     
-    # Display camera command
-    cmd_color = (0, 255, 0) if decision['source'] == 'camera_steering' else (0, 165, 255)
-    cv2.putText(annotated_frame, f"Cmd: {camera_cmd}", (10, 60), 
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, cmd_color, 2)
+    # Step 3: Cap sensor readings and calculate left and right clearance areas
+    front_left_capped = cap_distance(ir_data.front_left)
+    left_capped = cap_distance(ir_data.left)
+    front_right_capped = cap_distance(ir_data.front_right)
+    right_capped = cap_distance(ir_data.right)
     
-    # Display decision source
-    source_text = f"Source: {decision['source']}"
-    cv2.putText(annotated_frame, source_text, (10, 90), 
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+    left_area = front_left_capped + left_capped
+    right_area = front_right_capped + right_capped
     
-    # Display priority level
-    priority_text = f"Priority: {decision['priority']}"
-    cv2.putText(annotated_frame, priority_text, (10, 120), 
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+    print(f"[Reposition] Left area: {left_area}mm (FL:{front_left_capped} + L:{left_capped})")
+    print(f"[Reposition] Right area: {right_area}mm (FR:{front_right_capped} + R:{right_capped})")
     
-    # Display frame count
-    cv2.putText(annotated_frame, f"Frame: {frame_count}", (10, image_height - 10), 
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    # Step 4: Turn towards the direction with more clearance
+    MIN_AREA_DIFFERENCE = 100  # mm - Minimum difference to prefer one side
+    MINIMUM_CLEARANCE = 300    # mm - Minimum total area to consider turning
     
-    # Show windows
-    if DEBUG_SHOW_FRAME:
-        cv2.imshow("Debug: Annotated Frame", annotated_frame)
-    
-    if DEBUG_SHOW_MASK:
-        cv2.imshow("Debug: Raw Yellow Mask", mask)
-    
-    if DEBUG_SHOW_CLEANED:
-        cv2.imshow("Debug: Cleaned Mask", cleaned)
-    
-    # Save frames if enabled
-    if DEBUG_SAVE_FRAMES and frame_count % 10 == 0:  # Save every 10th frame
-        cv2.imwrite(f"{DEBUG_FRAME_SAVE_PATH}frame_{frame_count:04d}.jpg", annotated_frame)
-        cv2.imwrite(f"{DEBUG_FRAME_SAVE_PATH}mask_{frame_count:04d}.jpg", cleaned)
-    
-    # Wait for key press (1ms) - allows window updates
-    cv2.waitKey(1)
-
-def debug_print_hsv_thresholds():
-    """Prints current HSV threshold values for yellow detection."""
-    if not DEBUG_ENABLED or not DEBUG_PRINT_HSV:
-        return
-    
-    print("\n" + "="*50)
-    print("HSV YELLOW DETECTION THRESHOLDS")
-    print("="*50)
-    print(f"Hue:        {YELLOW_LOWER_H} - {YELLOW_UPPER_H}")
-    print(f"Saturation: {YELLOW_LOWER_S} - {YELLOW_UPPER_S}")
-    print(f"Value:      {YELLOW_LOWER_V} - {YELLOW_UPPER_V}")
-    print("="*50 + "\n")
-
-def debug_print_steering(error, camera_cmd, found):
-    """Prints detailed steering information."""
-    if not DEBUG_ENABLED or not DEBUG_PRINT_STEERING:
-        return
-    
-    if found:
-        direction = "RIGHT" if error > 0 else "LEFT" if error < 0 else "CENTERED"
-        print(f"[Steering Debug] Error: {error:+7.1f}px | Direction: {direction:8s} | Command: {camera_cmd}")
+    if left_area < MINIMUM_CLEARANCE and right_area < MINIMUM_CLEARANCE:
+        print(f"[Reposition] Both sides blocked (L:{left_area}, R:{right_area}) - attempting large turn")
+        pi_2_ard("ML2")  # Turn left
+        time.sleep(0.6)  # Turn for 600ms 
+    elif abs(left_area - right_area) < MIN_AREA_DIFFERENCE:
+        print(f"[Reposition] Areas nearly equal ({left_area} vs {right_area}) - slight right turn")
+        pi_2_ard("MR2")  # Default to right when tied
+        time.sleep(0.2)  # Shorter turn
+    elif left_area > right_area:
+        print(f"[Reposition] Turning LEFT (left area larger by {left_area - right_area}mm)")
+        pi_2_ard("ML2")  # Turn left at speed 2
+        time.sleep(0.3)  # Turn for 300ms
     else:
-        print(f"[Steering Debug] NO YELLOW - Searching")
-
-def debug_print_ir_sensors(ir_data):
-    """Prints formatted IR sensor data."""
-    if not DEBUG_ENABLED or not DEBUG_PRINT_IR:
-        return
+        print(f"[Reposition] Turning RIGHT (right area larger by {right_area - left_area}mm)")
+        pi_2_ard("MR2")  # Turn right at speed 2
+        time.sleep(0.3)  # Turn for 300ms
     
-    if ir_data and ir_data.valid:
-        print(f"[IR Debug] L:{ir_data.left:4d} | FL:{ir_data.front_left:4d} | "
-              f"FR:{ir_data.front_right:4d} | R:{ir_data.right:4d} | B:{ir_data.back:4d}")
-    else:
-        print("[IR Debug] Invalid sensor data")
-
-def debug_print_decision(decision):
-    """Prints detailed decision information."""
-    if not DEBUG_ENABLED:
-        return
+    pi_2_ard("MF0")  # Stop motors
     
-    priority_label = ["NORMAL", "LOW", "MEDIUM", "HIGH"][min(decision['priority'], 3)]
-    print(f"[Decision Debug] {decision['source']:20s} | "
-          f"Priority: {priority_label:6s} | "
-          f"Command: {decision['command']:4s} | "
-          f"Reason: {decision['reason']}")
-
-def debug_print_performance(fps, loop_time):
-    """Prints performance metrics."""
-    if not DEBUG_ENABLED:
-        return
-    
-    status = "OK" if fps >= 15 else "SLOW"
-    print(f"[Performance] FPS: {fps:5.1f} | Loop: {loop_time:6.1f}ms | Status: {status}")
+    print("[Reposition] Repositioning complete")
+    return True
 
 
-# Main Loop Configuration
-TARGET_FPS = 20                    # Target frames per second
-FRAME_DELAY = 1.0 / TARGET_FPS    # Delay between frames (0.05s = 20 FPS)
-IR_READ_INTERVAL = 5              # Read IR sensors every N frames (reduces overhead)
 
-def main_loop():
+def drive():
     """
-    Main control loop that:
-    1. Captures and processes camera frames
-    2. Detects yellow and computes steering
-    3. Reads IR sensors periodically
-    4. Combines decisions with priority (obstacles > camera)
-    5. Sends commands to Arduino
-    
-    Runs at real-time speed (target 15-20 FPS)
+    Main driving control loop.
+    Monitors for stop conditions and handles motor shutdown.
+    Manages Pixicam target detection and brush motor control.
     """
-    print("[Main Loop] Starting yellow-following with obstacle avoidance...")
-    print("[Main Loop] Press Ctrl+C to stop or type 'STOP' to emergency stop")
+    global user_stop_requested, estop_triggered
     
-    # Print HSV thresholds at startup
-    debug_print_hsv_thresholds()
+    print("[Drive] Starting main control loop")
+    print("[Drive] Type 'STOP' at any time to emergency stop")
     
-    frame_count = 0
-    loop_start_time = time.time()
-    last_ir_data = None
+    # Brush motor state management
+    brush_motor_active = False
+    brush_motor_off_time = None
+    target_previously_detected = False
+    BRUSH_MOTOR_DELAY = 5.0  # seconds to keep brush on after target disappears
     
     try:
         while True:
-            # Check if user requested stop
+            # Check for user stop command
             if user_stop_requested:
-                print("\n[Main Loop] User stop requested - sending stop command to Arduino")
-                pi_2_ard("MF0", max_retries=5, timeout=0.2)
+                print("\n[Drive] User STOP command received - shutting down motors")
+                pi_2_ard("MF0", max_retries=5, timeout=0.2)  # Stop motors
+                pi_2_ard("DBM", max_retries=3, timeout=0.2)  # Turn off brush motor
                 break
-            loop_iteration_start = time.time()
             
-            # ===== 1. CAPTURE FRAME =====
-            frame = capture_image()
-            if frame is None:
-                print("[Main Loop] Failed to capture frame")
-                time.sleep(FRAME_DELAY)
-                continue
+            # Check for Arduino emergency stop
+            if estop_triggered:
+                print("\n[Drive] Arduino ESTOP triggered - initiating repositioning")
+                estop_triggered = False  # Reset flag after handling
+                # Arduino has already stopped motors and started grace period
+                # Now reposition to find clear path
+                reposition()
             
-            image_height, image_width = frame.shape[:2]
+            # ===== PIXICAM TARGET DETECTION AND BRUSH MOTOR CONTROL =====
+            target_detected = Pixicam()
             
-            # ===== 2. PROCESS FRAME FOR YELLOW DETECTION =====
-            hsv = preprocess_frame(frame)
-            mask = yellow_mask(hsv)
-            cleaned = clean_mask(mask)
-            found, cx, cy = find_yellow_centroid(cleaned)
+            # Target detected - activate brush motor
+            if target_detected:
+                if not brush_motor_active:
+                    print("[Drive] Target detected - activating brush motor")
+                    pi_2_ard("ABM")
+                    brush_motor_active = True
+                # Cancel any pending shutdown timer
+                brush_motor_off_time = None
+                target_previously_detected = True
             
-            # ===== 3. COMPUTE CAMERA STEERING COMMAND =====
+            # Target lost - start shutdown timer
+            elif target_previously_detected and not target_detected:
+                if brush_motor_off_time is None:
+                    print(f"[Drive] Target lost - brush motor will turn off in {BRUSH_MOTOR_DELAY}s")
+                    brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
+                target_previously_detected = False
+            
+            # Check if it's time to turn off brush motor
+            if brush_motor_off_time is not None and time.time() >= brush_motor_off_time:
+                print("[Drive] Turning off brush motor")
+                pi_2_ard("DBM")
+                brush_motor_active = False
+                brush_motor_off_time = None
+            
+            # ===== YELLOW LINE/WALL FOLLOWING =====
+            # Capture and process frame
+            hsv_frame = capture_image()
+            
+            # Create yellow mask
+            mask = yellow_mask(hsv_frame)
+            
+            # Clean up noise
+            cleaned_mask = clean_mask(mask)
+            
+            # Find yellow centroid
+            found, cx, cy = find_yellow_centroid(cleaned_mask)
+            
             if found:
-                # Camera is sideways, so use cy (vertical) with image_height for steering
+                # Get image dimensions
+                image_height, image_width = hsv_frame.shape[:2]
+                
+                # Compute error (camera is upside down on left side)
                 error = compute_error(cy, image_height)
                 
-                # Determine camera command WITHOUT sending it yet
-                if abs(error) < ERROR_THRESHOLD:
-                    camera_cmd = "MFD"
-                elif error > 0:
-                    camera_cmd = "MR0"  # Yellow above center -> turn right
-                else:
-                    camera_cmd = "ML0"  # Yellow below center -> turn left
+                # Generate steering command
+                steering_cmd = yellow_line_steering(error)
                 
-                # Debug print steering
-                debug_print_steering(error, camera_cmd, found)
+                # Send command to Arduino
+                pi_2_ard(steering_cmd)
+                
+                # Debug output
+                if abs(error) > ERROR_THRESHOLD:
+                    print(f"[YellowFollow] Error: {error:.1f}px → {steering_cmd}")
             else:
-                # No yellow detected - search for it
-                camera_cmd = "YLL"
-                debug_print_steering(0, camera_cmd, found)
+                # No yellow detected - stop and search
+                print("[YellowFollow] Yellow line lost - stopping")
+                pi_2_ard("MF0")
             
-            # ===== 4. READ IR SENSORS (periodically to reduce overhead) =====
-            if frame_count % IR_READ_INTERVAL == 0:
-                last_ir_data = read_ir_sensors()
-                debug_print_ir_sensors(last_ir_data)
+            time.sleep(0.05)  # Small delay to prevent busy loop
             
-            # ===== 5. DECIDE FINAL MOTION (obstacle avoidance has priority) =====
-            decision = decide_motion(camera_cmd, last_ir_data)
-            debug_print_decision(decision)
-            
-            # ===== 6. SEND COMMAND TO ARDUINO (with ACK waiting) =====
-            command_to_send = decision['command'] if decision['source'] == 'obstacle_avoidance' else camera_cmd
-            success = pi_2_ard(command_to_send)
-            
-            if not success:
-                print(f"[Main Loop] Warning: Failed to get ACK for command '{command_to_send}'")
-            
-            # ===== 7. DEBUG VISUALIZATION =====
-            debug_visualize(frame, hsv, mask, cleaned, found, cx, cy, error if found else 0, 
-                          camera_cmd, decision, frame_count)
-            
-            # ===== 8. FRAME TIMING AND PERFORMANCE MONITORING =====
-            frame_count += 1
-            loop_iteration_time = time.time() - loop_iteration_start
-            
-            # Calculate FPS every 20 frames
-            if frame_count % 20 == 0:
-                elapsed = time.time() - loop_start_time
-                current_fps = 20 / elapsed
-                debug_print_performance(current_fps, loop_iteration_time * 1000)
-                loop_start_time = time.time()
-            
-            # Maintain target frame rate
-            if loop_iteration_time < FRAME_DELAY:
-                time.sleep(FRAME_DELAY - loop_iteration_time)
-            else:
-                if DEBUG_ENABLED:
-                    print(f"[Warning] Loop running slow: {loop_iteration_time*1000:.1f}ms (target: {FRAME_DELAY*1000:.1f}ms)")
-    
     except KeyboardInterrupt:
-        print("\n[Main Loop] Stopped by user")
-        success = pi_2_ard("MF0", max_retries=5, timeout=0.2)  # Stop robot - extra retries for safety
-        if success:
-            print("[Main Loop] Robot stopped")
-        else:
-            print("[Main Loop] Warning: Stop command may not have been received")
-        
-        # Close all debug windows
-        if DEBUG_ENABLED:
-            cv2.destroyAllWindows()
+        print("\n[Drive] Keyboard interrupt - shutting down motors")
+        pi_2_ard("MF0", max_retries=5, timeout=0.2)
+        pi_2_ard("DBM", max_retries=3, timeout=0.2)
     
-    except Exception as e:
-        print(f"[Main Loop] Error: {e}")
-        success = pi_2_ard("MF0", max_retries=5, timeout=0.2)  # Stop robot on error - extra retries for safety
-        if not success:
-            print("[Main Loop] Warning: Emergency stop command may not have been received")
-        
-        # Close all debug windows
-        if DEBUG_ENABLED:
-            cv2.destroyAllWindows()
-        raise
-
+    print("[Drive] Control loop ended")
 
 
 def main():
@@ -1054,14 +768,14 @@ def main():
         return
     
     # Start stdin monitor thread for emergency stop capability
-    start_stdin_monitor()
+    start_User_Input()
     
     try:
         # Start the main yellow-following loop
-        main_loop()
+        drive()
     finally:
         # Clean shutdown of threads
-        stop_stdin_monitor()
+        stop_User_Input()
         stop_serial_reader()
 
 if __name__ == "__main__":
