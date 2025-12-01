@@ -450,7 +450,7 @@ def compute_error(centroid_y, image_height):
     # Calculate the target y-coordinate: center of the bottom half of image
     # Bottom half is from y=image_height/2 to y=image_height
     # Center of bottom half is at y=3*image_height/4
-    target_y = 3 * image_height / 4
+    target_y = image_height / 2
     
     # Compute error: positive means yellow is above target in upside-down view
     # Since camera is upside down, "above" in image = "far" in real world
