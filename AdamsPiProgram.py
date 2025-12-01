@@ -15,7 +15,7 @@ import time
 # Pixy Setup
 #1 = red, 2 = green 3 = blue 4= yellow 5 = purple (GRAVEL)  6 = pink (RAMP)
 centerX = 157
-deadband = 30
+deadband = 60
 targetSignature = 1
 gravelSignature = 5
 rampSignature = 6
@@ -229,14 +229,14 @@ def UserControl():
 def drive():
     global brushMotorOn
     global brushMotorOnTime
-    last = None  # None, True, or False
+    yellowFlagLast = None  # None, True, or False
     pixi = None
 
     while True:
         pixi = Pixicam()
         img = capture_image()
-        current = process_image(img)
-        print(f"Yellow Detected: {current}")
+        yellowFlagCurrent = process_image(img)
+        print(f"Yellow Detected: {yellowFlagCurrent}")
 
         if pixi is True:
             Pixidrive()
@@ -246,14 +246,14 @@ def drive():
                 if currentTime - brushMotorOnTime >= 5000:  # 5 seconds have passed
                     pi_2_ard("DBM")  # Stop Brush Motor
                     brushMotorOn = False
-            if current and last is not True:
-                pi_2_ard("MF0")
+            if yellowFlagCurrent and yellowFlagLast is not True:
+                pi_2_ard("DBI")
                 print("Sent DBI (yellow acquired)")
-            elif not current and last is not False:
+            elif not yellowFlagCurrent and yellowFlagLast is not False:
                 pi_2_ard("YLL")
                 print("Sent YLL (yellow lost)")
 
-        last = current
+        yellowFlagLast = yellowFlagCurrent
         time.sleep(0.1)
 
 def main():
