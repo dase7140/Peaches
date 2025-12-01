@@ -810,42 +810,6 @@ def drive():
     print("[Drive] Control loop ended")
 
 
-# def main():
-#     # Start serial reader thread
-#     start_serial_reader()
-    
-#     if not wait_for_start():
-#         return
-    
-#     # Start stdin monitor thread for emergency stop capability
-#     start_User_Input()
-    
-#     try:
-#         # Start the main yellow-following loop
-#         drive()
-#     finally:
-#         # Emergency shutdown - ensure motors are stopped
-#         print("\n[Main] Shutting down...")
-#         try:
-#             pi_2_ard("MF0", max_retries=5, timeout=0.2)
-#             pi_2_ard("DBM", max_retries=3, timeout=0.2)
-#         except:
-#             pass
-        
-#         # Clean shutdown of threads and camera
-#         stop_User_Input()
-#         stop_serial_reader()
-        
-#         try:
-#             picam.stop()
-#             print("[Main] Camera stopped")
-#         except:
-#             pass
-        
-#         print("[Main] Shutdown complete")
-
-def test():
-    return
 
 def main():
     # Start serial reader thread
@@ -859,7 +823,7 @@ def main():
     
     try:
         # Start the main yellow-following loop
-        test()
+        drive()
     finally:
         # Emergency shutdown - ensure motors are stopped
         print("\n[Main] Shutting down...")
