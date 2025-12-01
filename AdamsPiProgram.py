@@ -236,7 +236,9 @@ def drive():
         pixi = Pixicam()
         img = capture_image()
         yellowFlagCurrent = process_image(img)
+        print(f"Pixy Detected: {pixi}")
         print(f"Yellow Detected: {yellowFlagCurrent}")
+        
 
         if pixi is True:
             Pixidrive()
@@ -246,11 +248,11 @@ def drive():
                 if currentTime - brushMotorOnTime >= 5000:  # 5 seconds have passed
                     pi_2_ard("DBM")  # Stop Brush Motor
                     brushMotorOn = False
-            if yellowFlagCurrent and yellowFlagLast is not True:
-                pi_2_ard("MF0")
+            if yellowFlagCurrent is True and yellowFlagLast is not True:
+                pi_2_ard("DBI")
                 print("Sent DBI (yellow acquired)")
-            elif not yellowFlagCurrent and yellowFlagLast is not False:
-                pi_2_ard("MF0")
+            elif yellowFlagCurrent is False and yellowFlagLast is True:
+                pi_2_ard("YLL")
                 print("Sent YLL (yellow lost)")
 
         yellowFlagLast = yellowFlagCurrent
@@ -264,11 +266,11 @@ def main():
     reader = threading.Thread(target = serial_reader, daemon=True)
     reader.start()
 
-    #UserControl()
+    UserControl()
     #drive()
     # capture_image()
-    while True:
-        Pixidrive()
+    # while True:
+    #     Pixidrive()
 
 if __name__ == "__main__":
     main()
