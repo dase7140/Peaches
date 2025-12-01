@@ -227,6 +227,8 @@ def UserControl():
 
 # Main driving function
 def drive():
+    global brushMotorOn
+    global brushMotorOnTime
     last = None  # None, True, or False
     pixi = None
 
