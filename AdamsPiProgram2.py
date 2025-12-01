@@ -680,7 +680,6 @@ def drive():
     # Brush motor state management
     brush_motor_active = False
     brush_motor_off_time = None
-    target_previously_detected = False
     BRUSH_MOTOR_DELAY = 5.0  # seconds to keep brush on after target disappears
     
     # Yellow line following state management
@@ -719,16 +718,18 @@ def drive():
                     print("[Drive] Target detected - activating brush motor")
                     pi_2_ard("ABM")
                     brush_motor_active = True
-                # Cancel any pending shutdown timer
-                brush_motor_off_time = None
-                target_previously_detected = True
+                    target_previously_detected = True
+                # Cancel any pending shutdown timer only if brush motor is active
+                # This prevents flickering detections from resetting the timer
+                if brush_motor_active:
+                    brush_motor_off_time = None
+                    target_previously_detected = True
             
-            # Target lost - start shutdown timer
-            elif target_previously_detected and not target_detected:
+            # Target lost - start shutdown timer (only if motor was active)
+            elif not target_detected and brush_motor_active:
                 if brush_motor_off_time is None:
                     print(f"[Drive] Target lost - brush motor will turn off in {BRUSH_MOTOR_DELAY}s")
                     brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
-                target_previously_detected = False
             
             # Check if it's time to turn off brush motor
             if brush_motor_off_time is not None and time.time() >= brush_motor_off_time:
