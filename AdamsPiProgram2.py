@@ -17,11 +17,6 @@ import time
 centerX = 157
 deadband = 60
 targetSignature = 1
-gravelSignature = 5
-rampSignature = 6
-lastTargetDirection = 0
-lostTargetTimer = 0
-searchTimeout = 3000 
 
 pixy.init()
 pixy.change_prog("color_connected_components")
@@ -64,33 +59,176 @@ def Pixicam():
 brushMotorOn = False
 brushMotorOnTime = 0
 
-def Pixidrive():
-    global brushMotorOn
-    global brushMotorOnTime
-    global lastTargetDirection
-
-    count = pixy.ccc_get_blocks(100, blocks)
-
-    if count > 0:
-        targetSeen = seeColor(targetSignature, count)
-        targetX = getTargetX(targetSignature, count)
-    
-        if targetSeen and targetX != -1:
-            print("Drop Tray")
-            pi_2_ard("ABM")
-            brushMotorOn = True
-            brushMotorOnTime = time.time() * 1000  # current time in milliseconds
-            lastTargetDirection = 0 #debugging
-    else:
-        print(f"Count =  {count}")
-
-
+############################
 # Serial Communication Setup
+############################
+
 port = "/dev/ttyACM0"      # Arduino port on Raspberry Pi
 ser = serial.Serial(port, 115200, timeout=1) # establish serial connection
 time.sleep(2)               # wait for the serial connection to initialize
 ser.reset_input_buffer()    # clear input buffer to start fresh
 ser.reset_output_buffer()   # clear output buffer to start fresh
+
+# Thread control and state variables
+serial_reader_running = False
+estop_triggered = False
+serial_thread = None
+user_stop_requested = False
+stdin_thread = None
+
+
+def serial_reader():
+    """
+    Continuously reads incoming serial messages from Arduino.
+    Designed to run in a separate thread.
+    
+    Monitors for:
+    - ESTOP: Emergency stop triggered by Arduino
+    - IR: Sensor data responses
+    - ACK: Acknowledgment messages (handled by pi_2_ard)
+    - Other messages: General Arduino output
+    
+    Updates global flags (e.g., estop_triggered) based on messages.
+    """
+    global serial_reader_running, estop_triggered
+    
+    print("[Serial Reader] Thread started")
+    
+    while serial_reader_running:
+        try:
+            if ser.in_waiting > 0:
+                line = ser.readline().decode('utf-8', errors='replace').strip()
+                
+                if line:
+                    # Handle ESTOP message
+                    if line == "ESTOP":
+                        estop_triggered = True
+                        print("[Arduino] EMERGENCY STOP TRIGGERED")
+                    
+                    # Handle IR sensor data
+                    elif line.startswith("IR:"):
+                        # IR data is typically handled by pi_2_ard when requested
+                        # But we can log it if received unexpectedly
+                        pass
+                    
+                    # Handle ACK messages
+                    elif line.startswith("ACK:"):
+                        # ACK messages are handled by pi_2_ard
+                        # Don't print to avoid duplicate output
+                        pass
+                    
+                    # Handle other messages
+                    else:
+                        print(f"[Arduino] {line}")
+            
+            # Small delay to prevent busy waiting
+            time.sleep(0.01)
+            
+        except Exception as e:
+            print(f"[Serial Reader] Error: {e}")
+            time.sleep(0.1)
+    
+    print("[Serial Reader] Thread stopped")
+
+
+
+def start_serial_reader():
+    """
+    Starts the serial reader thread.
+    Call this at the beginning of your main program.
+    """
+    global serial_reader_running, serial_thread
+    
+    if serial_thread is not None and serial_thread.is_alive():
+        print("[Serial Reader] Thread already running")
+        return
+    
+    serial_reader_running = True
+    serial_thread = threading.Thread(target=serial_reader, daemon=True)
+    serial_thread.start()
+    print("[Serial Reader] Thread started successfully")
+
+
+
+def stop_serial_reader():
+    """
+    Stops the serial reader thread.
+    Call this when shutting down the program.
+    """
+    global serial_reader_running, serial_thread
+    
+    if serial_thread is None or not serial_thread.is_alive():
+        print("[Serial Reader] Thread not running")
+        return
+    
+    print("[Serial Reader] Stopping thread...")
+    serial_reader_running = False
+    serial_thread.join(timeout=2.0)  # Wait up to 2 seconds for thread to finish
+    
+    if serial_thread.is_alive():
+        print("[Serial Reader] Warning: Thread did not stop cleanly")
+    else:
+        print("[Serial Reader] Thread stopped successfully")
+
+
+
+def stdin_monitor():
+    """
+    Monitors stdin for user commands in a separate thread.
+    Specifically watches for 'STOP' command to emergency stop the robot.
+    """
+    global user_stop_requested
+    
+    print("[STDIN Monitor] Thread started - Type 'STOP' at any time to emergency stop")
+    
+    while not user_stop_requested:
+        try:
+            user_input = input().strip().upper()
+            if user_input == "STOP":
+                user_stop_requested = True
+                print("\n[USER STOP] Emergency stop requested!")
+                break
+        except (EOFError, KeyboardInterrupt):
+            break
+        except Exception as e:
+            print(f"[STDIN Monitor] Error: {e}")
+            time.sleep(0.1)
+    
+    print("[STDIN Monitor] Thread stopped")
+
+
+
+def start_stdin_monitor():
+    """
+    Starts the stdin monitor thread.
+    Allows user to type 'STOP' to emergency stop the robot.
+    """
+    global user_stop_requested, stdin_thread
+    
+    if stdin_thread is not None and stdin_thread.is_alive():
+        print("[STDIN Monitor] Thread already running")
+        return
+    
+    user_stop_requested = False
+    stdin_thread = threading.Thread(target=stdin_monitor, daemon=True)
+    stdin_thread.start()
+
+
+
+def stop_stdin_monitor():
+    """
+    Signals the stdin monitor thread to stop.
+    """
+    global user_stop_requested, stdin_thread
+    
+    if stdin_thread is None or not stdin_thread.is_alive():
+        return
+    
+    user_stop_requested = True
+    # Note: Thread will exit on its own when it reads the flag
+
+
+
 
 ###################
 # Pi Camera 
@@ -103,27 +241,17 @@ picam.start()
 yellow_detected = False
 flag = True
 
-
-
 def capture_image():
     image_data = picam.capture_array()
-    return image_data
-
-
+    blurred = cv2.GaussianBlur(image_data, (5, 5), 0)
+    hsv_frame = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+    return hsv_frame
 
 def load_image_from_path(image_path):
     image = cv2.imread(image_path)
     if image is None:
         raise FileNotFoundError(f"Image not found at path: {image_path}")
     return image   
-
-
-
-def preprocess_frame(frame):
-    blurred = cv2.GaussianBlur(frame, (5, 5), 0)
-    hsv_frame = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
-    return hsv_frame
-
 
 
 # Yellow Detection HSV Thresholds
@@ -135,7 +263,6 @@ YELLOW_LOWER_S = 50      # Lower saturation (increase to filter pale yellows)
 YELLOW_UPPER_S = 255     # Upper saturation
 YELLOW_LOWER_V = 50      # Lower value/brightness (increase in bright conditions)
 YELLOW_UPPER_V = 255     # Upper value/brightness
-
 
 
 def yellow_mask(hsv_frame):
@@ -152,8 +279,6 @@ def yellow_mask(hsv_frame):
 MORPH_KERNEL_SIZE = 5       # Size of structuring element (5x5 is a good start)
 MORPH_OPEN_ITERATIONS = 2   # Number of opening operations (removes small noise)
 MORPH_CLOSE_ITERATIONS = 3  # Number of closing operations (fills small gaps)
-
-
 
 def clean_mask(mask):
     # Create structuring element (kernel) for morphological operations
@@ -251,7 +376,7 @@ STEERING_KP = 0.5           # Adjust this to change steering responsiveness
 def camera_based_steering(error):
     """
     Converts the yellow centroid error into motor control commands.
-    Sends appropriate commands to Arduino via serial.
+    Returns the appropriate command without sending it.
     
     Args:
         error: float - Vertical offset from center
@@ -259,15 +384,13 @@ def camera_based_steering(error):
                       Negative = yellow is below center (turn right)
                       
     Returns:
-        command: str - The command sent to Arduino
+        command: str - The command to send to Arduino
     """
     
     # Check if yellow is centered (within deadband)
     if abs(error) < ERROR_THRESHOLD:
         # Yellow is centered - drive straight forward
-        command = "MFD"
-        pi_2_ard(command)
-        print(f"[Steering] Centered (error={error:.1f}) -> Forward")
+        command = "MF1"
         return command
     
     # Calculate turn intensity based on error magnitude
@@ -278,36 +401,31 @@ def camera_based_steering(error):
     turn_intensity = error_normalized * STEERING_KP
     turn_intensity = min(turn_intensity, 1.0)  # Cap at 1.0
     
-    # Determine direction and send command
+    # Determine direction - use turn_intensity to select speed level
     if error > 0:
         # Yellow is to the RIGHT - turn right
-        command = "MR0"
-        pi_2_ard(command)
-        print(f"[Steering] Error={error:.1f} -> Turn RIGHT (intensity={turn_intensity:.2f})")
+        command = "MR1"
         return command
     else:
         # Yellow is to the LEFT - turn left
-        command = "ML0"
-        pi_2_ard(command)
-        print(f"[Steering] Error={error:.1f} -> Turn LEFT (intensity={turn_intensity:.2f})")
+        command = "ML1"
         return command
 
 
 
-#### 
+##############
 # IR Sensors
-##########
-
-# ...existing code...
+##############
 
 # IR Sensor Configuration
 IR_SENSOR_COUNT = 5
 IR_SENSOR_NAMES = ["Left", "Front_Left", "Front_Right", "Right", "Back"]
 
 # IR sensor index mapping (matches Arduino)
+# Arduino channels: Left=0, Front_Right=1, Front_Left=2, Right=3, Back=4
 IR_LEFT = 0
-IR_FRONT_LEFT = 1
-IR_FRONT_RIGHT = 2
+IR_FRONT_RIGHT = 1
+IR_FRONT_LEFT = 2
 IR_RIGHT = 3
 IR_BACK = 4
 
@@ -337,62 +455,64 @@ def read_ir_sensors():
                       Returns None if communication fails or timeout occurs
     """
     try:
-        # Clear any old data in the buffer
-        ser.reset_input_buffer()
+        # Send command to Arduino to read IR sensors with ACK waiting
+        success = pi_2_ard("RIS")
         
-        # Send command to Arduino to read IR sensors
-        pi_2_ard("RIS")
+        if not success:
+            print("[IR] Failed to send RIS command")
+            return None
         
         # Create sensor data object
         sensor_data = IRSensorData()
         sensor_data.timestamp = time.time()
         
-        # Wait for and parse response from Arduino
-        # Arduino sends multiple lines, we need to collect them
-        timeout = time.time() + 2.0  # 2 second timeout
-        distances_collected = 0
+        # Wait for and parse compact IR response: "IR:val0,val1,val2,val3,val4"
+        timeout = time.time() + 1.0  # 1 second timeout (faster than before)
         
-        while distances_collected < IR_SENSOR_COUNT and time.time() < timeout:
+        while time.time() < timeout:
             if ser.in_waiting > 0:
                 line = ser.readline().decode('utf-8', errors='replace').strip()
                 
-                # Skip empty lines and status messages
-                if not line or line.startswith("ACK:") or line.startswith("IR Distances"):
-                    continue
-                
-                # Parse lines like "0=450" or "1=320"
-                if '=' in line:
+                # Look for IR data line
+                if line.startswith("IR:"):
                     try:
-                        sensor_id, distance_str = line.split('=')
-                        sensor_id = int(sensor_id.strip())
-                        distance = int(distance_str.strip())
+                        # Parse compact format: "IR:450,320,500,380,600"
+                        data_str = line[3:]  # Remove "IR:" prefix
+                        values = data_str.split(',')
                         
-                        # Store in raw array
-                        if 0 <= sensor_id < IR_SENSOR_COUNT:
-                            sensor_data.raw_distances[sensor_id] = distance
-                            distances_collected += 1
-                            
+                        # Validate we got all 5 sensors
+                        if len(values) != IR_SENSOR_COUNT:
+                            print(f"[IR] Invalid data count: got {len(values)}, expected {IR_SENSOR_COUNT}")
+                            return None
+                        
+                        # Parse each value
+                        for i, val_str in enumerate(values):
+                            sensor_data.raw_distances[i] = int(val_str.strip())
+                        
+                        # Map to named fields
+                        sensor_data.left = sensor_data.raw_distances[IR_LEFT]
+                        sensor_data.front_left = sensor_data.raw_distances[IR_FRONT_LEFT]
+                        sensor_data.front_right = sensor_data.raw_distances[IR_FRONT_RIGHT]
+                        sensor_data.right = sensor_data.raw_distances[IR_RIGHT]
+                        sensor_data.back = sensor_data.raw_distances[IR_BACK]
+                        sensor_data.valid = True
+                        
+                        print(f"[IR] {sensor_data}")
+                        return sensor_data
+                        
                     except (ValueError, IndexError) as e:
                         print(f"[IR] Parse error: {line} - {e}")
-                        continue
+                        return None
+                
+                # Skip other messages
+                elif line and not line.startswith("ACK:"):
+                    print(f"[Ard] {line}")
             else:
                 time.sleep(0.01)  # Small delay to avoid busy waiting
         
-        # Check if we got all sensor readings
-        if distances_collected == IR_SENSOR_COUNT:
-            # Map to named fields
-            sensor_data.left = sensor_data.raw_distances[IR_LEFT]
-            sensor_data.front_left = sensor_data.raw_distances[IR_FRONT_LEFT]
-            sensor_data.front_right = sensor_data.raw_distances[IR_FRONT_RIGHT]
-            sensor_data.right = sensor_data.raw_distances[IR_RIGHT]
-            sensor_data.back = sensor_data.raw_distances[IR_BACK]
-            sensor_data.valid = True
-            
-            print(f"[IR] {sensor_data}")
-            return sensor_data
-        else:
-            print(f"[IR] Timeout: Only received {distances_collected}/{IR_SENSOR_COUNT} readings")
-            return None
+        # Timeout reached
+        print(f"[IR] Timeout: No IR data received")
+        return None
             
     except Exception as e:
         print(f"[IR] Error reading sensors: {e}")
@@ -542,32 +662,62 @@ def decide_motion(camera_command, ir_data):
 
 
 # Functions for Serial Communication
-# Send command from Pi to Arduino
-def pi_2_ard(command):
-    try:
-        ser.write((command + '\n').encode('utf-8')) # send command to Arduino
-        ser.flush()                                 # ensure command is sent
+# Send command from Pi to Arduino with ACK waiting and retry logic
+def pi_2_ard(command, max_retries=3, timeout=0.1):
+    """
+    Sends a command to Arduino and waits for acknowledgment.
+    Retries if no ACK is received within timeout period.
     
-    except Exception as e:                          # Catch any serial communication errors
-        print(f"Error sending command to Arduino: {e}")
-        return None
-
-# Read line from Arduino to Pi
-def serial_reader():
-    # Runs forever, printing each complete line from Arduino
-    while True:
+    Args:
+        command: str - Command to send to Arduino
+        max_retries: int - Maximum number of retry attempts (default: 3)
+        timeout: float - Seconds to wait for ACK before retrying (default: 0.1)
+        
+    Returns:
+        bool - True if ACK received, False if all retries failed
+    """
+    for attempt in range(max_retries):
         try:
-            line = ser.readline()
-            if line:
-                text = line.decode('utf-8', errors='replace').strip()
-                if text:
-                    print(f"[Ard] {text}")
+            # Clear input buffer before sending command
+            ser.reset_input_buffer()
+            
+            # Send command to Arduino
+            ser.write((command + '\n').encode('utf-8'))
+            ser.flush()
+            
+            # Wait for ACK response
+            start_time = time.time()
+            expected_ack = f"ACK:{command}"
+            
+            while (time.time() - start_time) < timeout:
+                if ser.in_waiting > 0:
+                    line = ser.readline().decode('utf-8', errors='replace').strip()
+                    
+                    # Check if this is the expected ACK
+                    if line == expected_ack:
+                        if attempt > 0:
+                            print(f"[Comm] Command '{command}' acknowledged (attempt {attempt + 1})")
+                        return True
+                    
+                    # If it's a different message, keep waiting
+                    elif line and not line.startswith("ACK:"):
+                        # Non-ACK message, print it
+                        print(f"[Ard] {line}")
+                
+                time.sleep(0.01)  # Small delay to avoid busy waiting
+            
+            # Timeout reached, no ACK received
+            if attempt < max_retries - 1:
+                print(f"[Comm] No ACK for '{command}' (attempt {attempt + 1}/{max_retries}), retrying...")
             else:
-                # Tiny sleep prevents busy-wait when no data
-                time.sleep(0.01)
+                print(f"[Comm] FAILED: No ACK for '{command}' after {max_retries} attempts")
+        
         except Exception as e:
-            print(f"[Ard] Read error: {e}")
-            time.sleep(0.1)
+            print(f"[Comm] Error sending command '{command}': {e}")
+            if attempt < max_retries - 1:
+                time.sleep(0.1)  # Brief delay before retry
+    
+    return False  # All retries failed
 
 
 def get_user_input():
@@ -576,8 +726,6 @@ def get_user_input():
         return command
     except EOFError:
         return "EXIT"
-
-
 
 
 def wait_for_start():
@@ -602,11 +750,12 @@ def UserControl():
         if command.upper() == "EXIT":
             print("Exiting program.")
             break
-        pi_2_ard(command)
+        success = pi_2_ard(command)
+        if not success:
+            print(f"[UserControl] Warning: Command '{command}' failed to receive ACK")
         time.sleep(0.05)  # Small delay to avoid overwhelming the serial buffer
 
 
-# ...existing code...
 
 # Debug Configuration Flags
 DEBUG_ENABLED = True              # Master debug switch
@@ -781,7 +930,7 @@ def main_loop():
     Runs at real-time speed (target 15-20 FPS)
     """
     print("[Main Loop] Starting yellow-following with obstacle avoidance...")
-    print("[Main Loop] Press Ctrl+C to stop")
+    print("[Main Loop] Press Ctrl+C to stop or type 'STOP' to emergency stop")
     
     # Print HSV thresholds at startup
     debug_print_hsv_thresholds()
@@ -792,6 +941,11 @@ def main_loop():
     
     try:
         while True:
+            # Check if user requested stop
+            if user_stop_requested:
+                print("\n[Main Loop] User stop requested - sending stop command to Arduino")
+                pi_2_ard("MF0", max_retries=5, timeout=0.2)
+                break
             loop_iteration_start = time.time()
             
             # ===== 1. CAPTURE FRAME =====
@@ -838,11 +992,12 @@ def main_loop():
             decision = decide_motion(camera_cmd, last_ir_data)
             debug_print_decision(decision)
             
-            # ===== 6. SEND COMMAND TO ARDUINO =====
-            if decision['source'] == 'obstacle_avoidance':
-                pi_2_ard(decision['command'])
-            elif decision['source'] == 'camera_steering':
-                pi_2_ard(camera_cmd)
+            # ===== 6. SEND COMMAND TO ARDUINO (with ACK waiting) =====
+            command_to_send = decision['command'] if decision['source'] == 'obstacle_avoidance' else camera_cmd
+            success = pi_2_ard(command_to_send)
+            
+            if not success:
+                print(f"[Main Loop] Warning: Failed to get ACK for command '{command_to_send}'")
             
             # ===== 7. DEBUG VISUALIZATION =====
             debug_visualize(frame, hsv, mask, cleaned, found, cx, cy, error if found else 0, 
@@ -868,8 +1023,11 @@ def main_loop():
     
     except KeyboardInterrupt:
         print("\n[Main Loop] Stopped by user")
-        pi_2_ard("MF0")  # Stop robot
-        print("[Main Loop] Robot stopped")
+        success = pi_2_ard("MF0", max_retries=5, timeout=0.2)  # Stop robot - extra retries for safety
+        if success:
+            print("[Main Loop] Robot stopped")
+        else:
+            print("[Main Loop] Warning: Stop command may not have been received")
         
         # Close all debug windows
         if DEBUG_ENABLED:
@@ -877,7 +1035,9 @@ def main_loop():
     
     except Exception as e:
         print(f"[Main Loop] Error: {e}")
-        pi_2_ard("MF0")  # Stop robot on error
+        success = pi_2_ard("MF0", max_retries=5, timeout=0.2)  # Stop robot on error - extra retries for safety
+        if not success:
+            print("[Main Loop] Warning: Emergency stop command may not have been received")
         
         # Close all debug windows
         if DEBUG_ENABLED:
@@ -887,15 +1047,22 @@ def main_loop():
 
 
 def main():
-
+    # Start serial reader thread
+    start_serial_reader()
+    
     if not wait_for_start():
         return
     
-    reader = threading.Thread(target = serial_reader, daemon=True)
-    reader.start()
-
-    # Start the main yellow-following loop
-    main_loop()
+    # Start stdin monitor thread for emergency stop capability
+    start_stdin_monitor()
+    
+    try:
+        # Start the main yellow-following loop
+        main_loop()
+    finally:
+        # Clean shutdown of threads
+        stop_stdin_monitor()
+        stop_serial_reader()
 
 if __name__ == "__main__":
     main()
