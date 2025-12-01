@@ -735,45 +735,8 @@ def drive():
                     print("[Drive] Repositioning succeeded - resuming yellow line following")
                     last_steering_cmd = None  # Force next steering command to be sent
             
-            # ===== PIXICAM TARGET DETECTION AND BRUSH MOTOR CONTROL =====
-            try:
-                target_detected = Pixicam()
-                pixy_error_count = 0  # Reset error count on successful read
-            except Exception as e:
-                # Pixy error - assume no target detected
-                target_detected = False
-                pixy_error_count += 1
-                
-                # Warn if errors persist
-                if pixy_error_count == MAX_PIXY_ERRORS:
-                    print(f"[Pixy] WARNING: {MAX_PIXY_ERRORS} consecutive errors - camera may be disconnected")
-                    print("[Pixy] Continuing without target detection...")
-            
-            # Target detected - activate brush motor
-            if target_detected:
-                if not brush_motor_active:
-                    print("[Drive] Target detected - activating brush motor")
-                    pi_2_ard("ABM")
-                    brush_motor_active = True
-                # Cancel any pending shutdown timer only if brush motor is active
-                # This prevents flickering detections from resetting the timer
-                if brush_motor_active:
-                    brush_motor_off_time = None
-            
-            # Target lost - start shutdown timer (only if motor was active)
-            elif not target_detected and brush_motor_active:
-                if brush_motor_off_time is None:
-                    print(f"[Drive] Target lost - brush motor will turn off in {BRUSH_MOTOR_DELAY}s")
-                    brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
-            
-            # Check if it's time to turn off brush motor
-            if brush_motor_off_time is not None and time.time() >= brush_motor_off_time:
-                print("[Drive] Turning off brush motor")
-                pi_2_ard("DBM")
-                brush_motor_active = False
-                brush_motor_off_time = None
-            
-            # ===== YELLOW LINE/WALL FOLLOWING =====
+            # ===== YELLOW LINE/WALL FOLLOWING (Priority: Always check first) =====
+            # This runs FIRST to ensure continuous line following
             # Capture and process frame
             hsv_frame = capture_image()
             
@@ -849,6 +812,49 @@ def drive():
                     # Still within tolerance - keep last command
                     # Reset search timer since we're still within threshold
                     search_start_time = None
+            
+            # ===== PIXICAM TARGET DETECTION AND BRUSH MOTOR CONTROL =====
+            # This runs AFTER yellow line following to avoid blocking steering
+            try:
+                target_detected = Pixicam()
+                pixy_error_count = 0  # Reset error count on successful read
+            except Exception as e:
+                # Pixy error - assume no target detected
+                target_detected = False
+                pixy_error_count += 1
+                
+                # Warn if errors persist
+                if pixy_error_count == MAX_PIXY_ERRORS:
+                    print(f"[Pixy] WARNING: {MAX_PIXY_ERRORS} consecutive errors - camera may be disconnected")
+                    print("[Pixy] Continuing without target detection...")
+            
+            # Target detected - activate brush motor
+            if target_detected:
+                if not brush_motor_active:
+                    print("[Drive] Target detected - activating brush motor")
+                    pi_2_ard("ABM")
+                    brush_motor_active = True
+                    # Reset steering command so next yellow line command will be sent
+                    last_steering_cmd = None
+                # Cancel any pending shutdown timer only if brush motor is active
+                # This prevents flickering detections from resetting the timer
+                if brush_motor_active:
+                    brush_motor_off_time = None
+            
+            # Target lost - start shutdown timer (only if motor was active)
+            elif not target_detected and brush_motor_active:
+                if brush_motor_off_time is None:
+                    print(f"[Drive] Target lost - brush motor will turn off in {BRUSH_MOTOR_DELAY}s")
+                    brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
+            
+            # Check if it's time to turn off brush motor
+            if brush_motor_off_time is not None and time.time() >= brush_motor_off_time:
+                print("[Drive] Turning off brush motor")
+                pi_2_ard("DBM")
+                brush_motor_active = False
+                brush_motor_off_time = None
+                # Reset steering command so next yellow line command will be sent
+                last_steering_cmd = None
             
             time.sleep(0.05)  # Small delay to prevent busy loop
             
