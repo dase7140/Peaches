@@ -410,7 +410,7 @@ def find_yellow_ellipse(mask):
     largest_contour = max(contours, key=cv2.contourArea)
     
     # Filter out very small contours (likely noise)
-    MIN_CONTOUR_AREA = 500  # Adjust this threshold as needed
+    MIN_CONTOUR_AREA = 150  # Adjust this threshold as needed
     if cv2.contourArea(largest_contour) < MIN_CONTOUR_AREA:
         return False, 0, 0
     
@@ -443,7 +443,7 @@ def find_yellow_centroid(mask):
     largest_contour = max(contours, key=cv2.contourArea)
     
     # Filter out very small contours (likely noise)
-    MIN_CONTOUR_AREA = 500  # Adjust this threshold as needed
+    MIN_CONTOUR_AREA = 150  # Adjust this threshold as needed
     if cv2.contourArea(largest_contour) < MIN_CONTOUR_AREA:
         return False, 0, 0
     
@@ -492,7 +492,7 @@ def compute_error(centroid_y, image_height):
 # Yellow Line Following Control Parameters
 ERROR_THRESHOLD = 50        # Deadband in pixels - go straight if error < this
 BASE_SPEED = 2              # Default speed level (1-5)
-TURN_SPEED = 2              # Speed when turning to follow line
+TURN_SPEED = 1              # Speed when turning to follow line
 
 
 def yellow_line_steering(error):
