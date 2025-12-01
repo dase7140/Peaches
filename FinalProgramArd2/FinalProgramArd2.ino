@@ -86,6 +86,8 @@ const int SPEED_3 = 200;
 const int SPEED_4 = 220;
 const int SPEED_5 = 255;
 
+const int SPEED_ARRAY[6] = [0,SPEED_1,SPEED_2,SPEED_3,SPEED_4,SPEED_5]; 
+
 int current_speed = SPEED_2; // Default speed
 
 Motor left_motor = Motor(AIN1, AIN2, PWMA, offsetA, STBY);
@@ -194,6 +196,15 @@ void turnRight(int spd){
   right_motor.drive(-spd);
 }
 
+void veerLeft(int leftSpd, int rightSpd){
+  left_motor.drive(leftSpd);
+  right_motor.drive(rightSpd);
+}
+
+void veerRight(int leftSpd, int rightSpd){
+    left_motor.drive(leftSpd);
+    right_motor.drive(rightSpd);
+}
 
 // Arduino Safety Stop System
 const int CRITICAL_STOP_DISTANCE = 300;  // mm - Emergency stop threshold
@@ -382,6 +393,72 @@ void loop() {
       turnLeft(current_speed);
       Serial.println("ACK:ML5");
     }
+
+    // Veer left, speed levels 1-5 (right motor turns faster)
+    else if (msg == "VL1") {
+      safetyStopActive = false;
+      inGracePeriod = false;
+      veerRight(SPEED_ARRAY[0],SPEED_ARRAY[1]);
+      Serial.println("ACK:VL1")
+    }
+    else if (msg == "VL2") {
+      safetyStopActive = false;
+      inGracePeriod = false;
+      veerRight(SPEED_ARRAY[1],SPEED_ARRAY[2]);
+      Serial.println("ACK:VL2")
+    }    
+    else if (msg == "VL3") {
+      safetyStopActive = false;
+      inGracePeriod = false;
+      veerRight(SPEED_ARRAY[2],SPEED_ARRAY[3]);
+      Serial.println("ACK:VL3")
+    }
+    else if (msg == "VL4") {
+      safetyStopActive = false;
+      inGracePeriod = false;
+      veerRight(SPEED_ARRAY[3],SPEED_ARRAY[4]);
+      Serial.println("ACK:VL4")
+    }
+    else if (msg == "VL5") {
+      safetyStopActive = false;
+      inGracePeriod = false;
+      veerRight(SPEED_ARRAY[4],SPEED_ARRAY[5]);
+      Serial.println("ACK:VL5")
+    }
+
+
+    //veer right, speed levels 1-5, (left motor turns faster)
+    else if (msg == "VR1") {
+      safetyStopActive = false;
+      inGracePeriod = false;
+      veerRight(SPEED_ARRAY[1],SPEED_ARRAY[0]);
+      Serial.println("ACK:VR1")
+    }
+    else if (msg == "VR2") {
+      safetyStopActive = false;
+      inGracePeriod = false;
+      veerRight(SPEED_ARRAY[2],SPEED_ARRAY[1]);
+      Serial.println("ACK:VR2")
+    }    
+    else if (msg == "VR3") {
+      safetyStopActive = false;
+      inGracePeriod = false;
+      veerRight(SPEED_ARRAY[3],SPEED_ARRAY[2]);
+      Serial.println("ACK:VR3")
+    }
+    else if (msg == "VR4") {
+      safetyStopActive = false;
+      inGracePeriod = false;
+      veerRight(SPEED_ARRAY[4],SPEED_ARRAY[3]);
+      Serial.println("ACK:VR4")
+    }
+    else if (msg == "VR5") {
+      safetyStopActive = false;
+      inGracePeriod = false;
+      veerRight(SPEED_ARRAY[5],SPEED_ARRAY[4]);
+      Serial.println("ACK:VR5")
+    }
+
 
     // Move Backward - Speed Levels 1-5
     else if (msg == "MB1") {
