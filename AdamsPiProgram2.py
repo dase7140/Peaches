@@ -435,7 +435,7 @@ def compute_error(centroid_y, image_height):
     Computes the vertical error between the yellow centroid and the target position.
     Camera is mounted UPSIDE DOWN on the LEFT side of the robot.
     
-    Target position is the center of the TOP HALF of the image (at 1/4 from top).
+    Target position is the center of the BOTTOM HALF of the image (at 3/4 from top).
     
     Args:
         centroid_y: int - Y coordinate of the yellow centroid
@@ -447,10 +447,10 @@ def compute_error(centroid_y, image_height):
                       Negative = yellow is too close (robot needs to turn right)
                       Zero = yellow is at target position (go straight)
     """
-    # Calculate the target y-coordinate: center of the top half of image
-    # Top half is from y=0 to y=image_height/2
-    # Center of top half is at y=image_height/4
-    target_y = image_height / 4
+    # Calculate the target y-coordinate: center of the bottom half of image
+    # Bottom half is from y=image_height/2 to y=image_height
+    # Center of bottom half is at y=3*image_height/4
+    target_y = 3 * image_height / 4
     
     # Compute error: positive means yellow is above target in upside-down view
     # Since camera is upside down, "above" in image = "far" in real world
