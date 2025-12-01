@@ -1,3 +1,4 @@
+from __future__ import print_function
 import cv2
 import numpy as np
 import serial
@@ -5,7 +6,6 @@ import time
 import threading
 import sys 
 from picamera2 import Picamera2
-from __future__ import print_function
 import pixy
 from ctypes import *
 from pixy import *
@@ -16,7 +16,7 @@ import time
 #1 = red, 2 = green 3 = blue 4= yellow 5 = purple (GRAVEL)  6 = pink (RAMP)
 centerX = 157
 deadband = 30
-targetSignature = 3 
+targetSignature = 1
 gravelSignature = 5
 rampSignature = 6
 lastTargetDirection = 0
@@ -61,8 +61,14 @@ def Pixicam():
     else:
         return False
 
+brushMotorOn = False
+brushMotorOnTime = 0
 
 def Pixidrive():
+    global brushMotorOn
+    global brushMotorOnTime
+    global lastTargetDirection
+    
     count = pixy.ccc_get_blocks(100, blocks)
 
     if count > 0:
@@ -71,11 +77,13 @@ def Pixidrive():
     
         if targetSeen and targetX != -1:
             error = targetX - centerX
-            lostTargetTimer = now
 
             if abs(error) <= deadband:
                 print("Move Forward")
+                pi_2_ard("ABM")
                 pi_2_ard("MFD")
+                brushMotorOn = True
+                brushMotorOnTime = time.time() * 1000  # current time in milliseconds
                 lastTargetDirection = 0 #debugging
             elif error < 0:
                 print("Turn Left")
@@ -85,9 +93,6 @@ def Pixidrive():
                 print("Turn Right")
                 pi_2_ard("MR0")
                 lastTargetDirection = 1
-        else:
-            print("No target found")
-            pi_2_ard("MF0")
     else:
         print(f"Count =  {count}")
         pi_2_ard("MF0")
@@ -234,6 +239,11 @@ def drive():
         if pixi is True:
             Pixidrive()
         elif pixi is False:
+            if brushMotorOn:
+                currentTime = time.time() * 1000  # current time in milliseconds
+                if currentTime - brushMotorOnTime >= 5000:  # 5 seconds have passed
+                    pi_2_ard("DBM")  # Stop Brush Motor
+                    brushMotorOn = False
             if current and last is not True:
                 pi_2_ard("DBI")
                 print("Sent DBI (yellow acquired)")

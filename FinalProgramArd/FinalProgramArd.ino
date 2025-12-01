@@ -120,7 +120,7 @@ void ReadAllIRDistances(int distances[]) {
 const int offsetA = 1;
 const int offsetB = -1;
 
-int speed = 180;
+int speed = 120;
 
 Motor left_motor = Motor(AIN1, AIN2, PWMA, offsetA, STBY);
 Motor right_motor = Motor(BIN1, BIN2, PWMB, offsetB, STBY); 
