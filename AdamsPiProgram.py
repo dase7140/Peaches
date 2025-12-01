@@ -71,7 +71,6 @@ def Pixidrive():
     
         if targetSeen and targetX != -1:
             error = targetX - centerX
-            lostTargetTimer = now
 
             if abs(error) <= deadband:
                 print("Move Forward")
