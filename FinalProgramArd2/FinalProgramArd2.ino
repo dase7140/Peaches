@@ -86,7 +86,7 @@ const int SPEED_3 = 200;
 const int SPEED_4 = 220;
 const int SPEED_5 = 255;
 
-const int SPEED_ARRAY[6] = [0,SPEED_1,SPEED_2,SPEED_3,SPEED_4,SPEED_5]; 
+const int SPEED_ARRAY[6] = {0,SPEED_1,SPEED_2,SPEED_3,SPEED_4,SPEED_5}; 
 
 int current_speed = SPEED_2; // Default speed
 
@@ -399,31 +399,31 @@ void loop() {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[0],SPEED_ARRAY[1]);
-      Serial.println("ACK:VL1")
+      Serial.println("ACK:VL1");
     }
     else if (msg == "VL2") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[1],SPEED_ARRAY[2]);
-      Serial.println("ACK:VL2")
+      Serial.println("ACK:VL2");
     }    
     else if (msg == "VL3") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[2],SPEED_ARRAY[3]);
-      Serial.println("ACK:VL3")
+      Serial.println("ACK:VL3");
     }
     else if (msg == "VL4") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[3],SPEED_ARRAY[4]);
-      Serial.println("ACK:VL4")
+      Serial.println("ACK:VL4");
     }
     else if (msg == "VL5") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[4],SPEED_ARRAY[5]);
-      Serial.println("ACK:VL5")
+      Serial.println("ACK:VL5");
     }
 
 
@@ -432,31 +432,31 @@ void loop() {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[1],SPEED_ARRAY[0]);
-      Serial.println("ACK:VR1")
+      Serial.println("ACK:VR1");
     }
     else if (msg == "VR2") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[2],SPEED_ARRAY[1]);
-      Serial.println("ACK:VR2")
+      Serial.println("ACK:VR2");
     }    
     else if (msg == "VR3") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[3],SPEED_ARRAY[2]);
-      Serial.println("ACK:VR3")
+      Serial.println("ACK:VR3");
     }
     else if (msg == "VR4") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[4],SPEED_ARRAY[3]);
-      Serial.println("ACK:VR4")
+      Serial.println("ACK:VR4");
     }
     else if (msg == "VR5") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[5],SPEED_ARRAY[4]);
-      Serial.println("ACK:VR5")
+      Serial.println("ACK:VR5");
     }
 
 
