@@ -320,19 +320,19 @@ int yellow_search_step = 0;
 void YellowSearch(){
   //checks current stearch step to determine direction; backs up for 5, turns right for 5, turns left for 10, 
   // right for 15, left for 20, etc. After 30 steps, defaults to turning in place to the right
-  if(0 <= yellow_search_step && yellow_search_step <= 5){
+  if(0 <= yellow_search_step && yellow_search_step <= 2){
     back(left_motor, right_motor, speed);
   }
-  else if(6 <= yellow_search_step && yellow_search_step <= 10){
+  else if(3 <= yellow_search_step && yellow_search_step <= 7){
     turnRight(speed);
   }
-  else if(11 <= yellow_search_step && yellow_search_step <= 20){
+  else if(8 <= yellow_search_step && yellow_search_step <= 17){
     turnLeft(speed);
   }
-  else if(21 <= yellow_search_step && yellow_search_step <= 35){
+  else if(18 <= yellow_search_step && yellow_search_step <= 32){
     turnRight(speed);
   }
-  else if(36 <= yellow_search_step && yellow_search_step <= 55){
+  else if(33 <= yellow_search_step && yellow_search_step <= 52){
     turnLeft(speed);
   }
   else {
