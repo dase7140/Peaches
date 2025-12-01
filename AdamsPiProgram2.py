@@ -659,7 +659,7 @@ def reposition():
     if back_distance > BACK_CLEAR_THRESHOLD:
         print(f"[Reposition] Back clear ({back_distance}mm) - reversing")
         pi_2_ard("MB2")  # Reverse at speed 2
-        time.sleep(0.2)  # Reverse for 200ms
+        time.sleep(0.1)  # Reverse for 100ms
         pi_2_ard("MF0")  # Stop motors
         time.sleep(0.1)
     else:
@@ -683,16 +683,16 @@ def reposition():
     
     if left_area < MINIMUM_CLEARANCE and right_area < MINIMUM_CLEARANCE:
         print(f"[Reposition] Both sides blocked (L:{left_area}, R:{right_area}) - attempting large turn")
-        pi_2_ard("ML2")  # Turn left
-        time.sleep(0.6)  # Turn for 600ms 
+        pi_2_ard("ML1")  # Turn left
+        time.sleep(0.2)  # Turn for 200ms 
     elif left_area > right_area:
         print(f"[Reposition] Turning LEFT (left area larger by {left_area - right_area}mm)")
-        pi_2_ard("ML2")  # Turn left at speed 2
-        time.sleep(0.3)  # Turn for 300ms
+        pi_2_ard("ML1")  # Turn left at speed 2
+        time.sleep(0.2)  # Turn for 200ms
     else:
         print(f"[Reposition] Turning RIGHT (right area larger by {right_area - left_area}mm)")
-        pi_2_ard("MR2")  # Turn right at speed 2
-        time.sleep(0.3)  # Turn for 300ms
+        pi_2_ard("MR1")  # Turn right at speed 1
+        time.sleep(0.2)  # Turn for 200ms
     
     pi_2_ard("MF0")  # Stop motors
     
