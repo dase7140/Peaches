@@ -386,6 +386,38 @@ def clean_mask(mask):
     return cleaned_mask
 
 
+def find_yellow_ellipse(mask):
+    """
+    Fits an elipse to the largest yellow contour in the mask
+
+    Args
+        maskL numpy array - binary mask with yellow regions
+    
+    Returns:
+        Tuple: (found, cy, angle)
+        found: bool - true if yellow region was detected
+        cy: int - y coordinate of centroid
+        angle: int - angle between the horizontal axis and the major axis of the ellipse
+    """
+    # Find all contours in the mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Check if any contours were found
+    if len(contours) == 0:
+        return False, 0, 0
+    
+    # Find the largest contour by area
+    largest_contour = max(contours, key=cv2.contourArea)
+    
+    # Filter out very small contours (likely noise)
+    MIN_CONTOUR_AREA = 500  # Adjust this threshold as needed
+    if cv2.contourArea(largest_contour) < MIN_CONTOUR_AREA:
+        return False, 0, 0
+    
+    ellipse = cv2.fitEllipse(largest_contour)
+    ((_, cy), (_, _), angle) = ellipse
+
+    return True, cy, angle
 
 def find_yellow_centroid(mask):
     """
