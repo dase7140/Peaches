@@ -247,7 +247,7 @@ def drive():
                     pi_2_ard("DBM")  # Stop Brush Motor
                     brushMotorOn = False
             if current and last is not True:
-                pi_2_ard("DBI")
+                pi_2_ard("MF0")
                 print("Sent DBI (yellow acquired)")
             elif not current and last is not False:
                 pi_2_ard("YLL")
