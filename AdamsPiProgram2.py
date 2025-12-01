@@ -447,13 +447,11 @@ def compute_error(centroid_y, image_height):
                       Negative = yellow is too close (robot needs to turn right)
                       Zero = yellow is at target position (go straight)
     """
-    # Calculate the target y-coordinate: center of the bottom half of image
-    # Bottom half is from y=image_height/2 to y=image_height
-    # Center of bottom half is at y=3*image_height/4
+    # Calculate the target y-coordinate: center of the image
     target_y = image_height / 2
     
-    # Compute error: positive means yellow is above target in upside-down view
-    # Since camera is upside down, "above" in image = "far" in real world
+    # Compute error: positive means yellow is below target (higher Y) = too far in real world
+    # Since camera is upside down: high Y value in image = far from robot in real world
     error = centroid_y - target_y
     
     return error
