@@ -9,18 +9,16 @@ from picamera2 import Picamera2
 import pixy
 from ctypes import *
 from pixy import *
-import time
 
 ########################
 # Pixycam Setup
 ########################
 #1 = red, 2 = green 3 = blue 4= yellow 5 = purple (GRAVEL)  6 = pink (RAMP)
-centerX = 157
-deadband = 60
-targetSignature = 1
 
 pixy.init()
 pixy.change_prog("color_connected_components")
+
+target_signature = 1
 
 #class to pull from 
 class Blocks(Structure):
@@ -41,12 +39,13 @@ frame = 0
 def Pixicam():
     count = pixy.ccc_get_blocks(100, blocks)
     if count > 0:
-        return True
+        for i in range(count):
+            if blocks[i].m_signature == target_signature:
+                return True
+        return False  # No matching signature found
     else:
         return False
 
-brushMotorOn = False
-brushMotorOnTime = 0
 
 ############################
 # Serial Communication Setup
@@ -283,8 +282,6 @@ config = picam.create_preview_configuration(main={"size": (640, 480)})
 picam.configure(config)
 picam.start()
 
-yellow_detected = False
-flag = True
 
 def capture_image():
     image_data = picam.capture_array()
@@ -302,11 +299,11 @@ def load_image_from_path(image_path):
 # Yellow Detection HSV Thresholds
 # These can be tuned based on lighting conditions
 # HSV ranges for yellow (adjust as needed)
-YELLOW_LOWER_H = 20      # Lower hue bound (yellow starts around 20-30)
-YELLOW_UPPER_H = 35      # Upper hue bound (yellow ends around 35-40)
-YELLOW_LOWER_S = 50      # Lower saturation (increase to filter pale yellows)
+YELLOW_LOWER_H = 80      # Lower hue bound
+YELLOW_UPPER_H = 135      # Upper hue bound
+YELLOW_LOWER_S = 35      # Lower saturation (increase to filter pale yellows)
 YELLOW_UPPER_S = 255     # Upper saturation
-YELLOW_LOWER_V = 50      # Lower value/brightness (increase in bright conditions)
+YELLOW_LOWER_V = 60      # Lower value/brightness (increase in bright conditions)
 YELLOW_UPPER_V = 255     # Upper value/brightness
 
 
@@ -400,6 +397,7 @@ def compute_error(centroid_y, image_height):
                       Zero = yellow is centered (go straight)
     """
     # Calculate the center y-coordinate of the image
+
     image_center_y = image_height / 2
     
     # Compute error: positive means yellow is above center in upside-down view
@@ -410,7 +408,6 @@ def compute_error(centroid_y, image_height):
 
 
 # Yellow Line Following Control Parameters
-KP = 0.5                    # Proportional gain for steering
 ERROR_THRESHOLD = 50        # Deadband in pixels - go straight if error < this
 BASE_SPEED = 2              # Default speed level (1-5)
 TURN_SPEED = 2              # Speed when turning to follow line
@@ -672,6 +669,14 @@ def drive():
     target_previously_detected = False
     BRUSH_MOTOR_DELAY = 5.0  # seconds to keep brush on after target disappears
     
+    # Yellow line following state management
+    last_steering_cmd = None
+    yellow_lost_counter = 0
+    YELLOW_LOST_THRESHOLD = 5  # frames - tolerate brief occlusions
+    SEARCH_ENABLED = True
+    search_start_time = None
+    SEARCH_TIMEOUT = 3.0  # seconds - max time to search before stopping
+    
     try:
         while True:
             # Check for user stop command
@@ -687,7 +692,9 @@ def drive():
                 estop_triggered = False  # Reset flag after handling
                 # Arduino has already stopped motors and started grace period
                 # Now reposition to find clear path
-                reposition()
+                if not reposition():
+                    print("[Drive] Repositioning failed - staying stopped")
+                    time.sleep(0.5)
             
             # ===== PIXICAM TARGET DETECTION AND BRUSH MOTOR CONTROL =====
             target_detected = Pixicam()
@@ -730,6 +737,10 @@ def drive():
             found, cx, cy = find_yellow_centroid(cleaned_mask)
             
             if found:
+                # Reset lost counter and search timer - yellow is visible
+                yellow_lost_counter = 0
+                search_start_time = None
+                
                 # Get image dimensions
                 image_height, image_width = hsv_frame.shape[:2]
                 
@@ -739,16 +750,55 @@ def drive():
                 # Generate steering command
                 steering_cmd = yellow_line_steering(error)
                 
-                # Send command to Arduino
-                pi_2_ard(steering_cmd)
-                
-                # Debug output
-                if abs(error) > ERROR_THRESHOLD:
-                    print(f"[YellowFollow] Error: {error:.1f}px → {steering_cmd}")
+                # Only send command if it's different from last time
+                if steering_cmd != last_steering_cmd:
+                    pi_2_ard(steering_cmd)
+                    last_steering_cmd = steering_cmd
+                    
+                    # Debug output when command changes
+                    if abs(error) > ERROR_THRESHOLD:
+                        print(f"[YellowFollow] Error: {error:.1f}px → {steering_cmd}")
+                    else:
+                        print(f"[YellowFollow] Centered → {steering_cmd}")
+            
             else:
-                # No yellow detected - stop and search
-                print("[YellowFollow] Yellow line lost - stopping")
-                pi_2_ard("MF0")
+                # Yellow not detected - increment lost counter
+                yellow_lost_counter += 1
+                
+                # Only react after several consecutive lost frames
+                if yellow_lost_counter >= YELLOW_LOST_THRESHOLD:
+                    
+                    if SEARCH_ENABLED:
+                        # Start search timer on first detection
+                        if yellow_lost_counter == YELLOW_LOST_THRESHOLD:
+                            print("[YellowFollow] Yellow line lost - starting search pattern")
+                            search_start_time = time.time()
+                            search_cmd = "ML1"  # Slow turn left to search
+                            if search_cmd != last_steering_cmd:
+                                pi_2_ard(search_cmd)
+                                last_steering_cmd = search_cmd
+                        
+                        # Check if search has timed out
+                        elif search_start_time is not None and (time.time() - search_start_time) > SEARCH_TIMEOUT:
+                            print(f"[YellowFollow] Search timeout after {SEARCH_TIMEOUT}s - stopping")
+                            stop_cmd = "MF0"
+                            if stop_cmd != last_steering_cmd:
+                                pi_2_ard(stop_cmd)
+                                last_steering_cmd = stop_cmd
+                            search_start_time = None  # Reset for next search
+                    
+                    elif not SEARCH_ENABLED and yellow_lost_counter == YELLOW_LOST_THRESHOLD:
+                        # Search disabled - just stop
+                        print("[YellowFollow] Yellow line lost - stopping")
+                        stop_cmd = "MF0"
+                        if stop_cmd != last_steering_cmd:
+                            pi_2_ard(stop_cmd)
+                            last_steering_cmd = stop_cmd
+                
+                else:
+                    # Still within tolerance - keep last command
+                    # Reset search timer since we're still within threshold
+                    search_start_time = None
             
             time.sleep(0.05)  # Small delay to prevent busy loop
             
@@ -759,6 +809,43 @@ def drive():
     
     print("[Drive] Control loop ended")
 
+
+# def main():
+#     # Start serial reader thread
+#     start_serial_reader()
+    
+#     if not wait_for_start():
+#         return
+    
+#     # Start stdin monitor thread for emergency stop capability
+#     start_User_Input()
+    
+#     try:
+#         # Start the main yellow-following loop
+#         drive()
+#     finally:
+#         # Emergency shutdown - ensure motors are stopped
+#         print("\n[Main] Shutting down...")
+#         try:
+#             pi_2_ard("MF0", max_retries=5, timeout=0.2)
+#             pi_2_ard("DBM", max_retries=3, timeout=0.2)
+#         except:
+#             pass
+        
+#         # Clean shutdown of threads and camera
+#         stop_User_Input()
+#         stop_serial_reader()
+        
+#         try:
+#             picam.stop()
+#             print("[Main] Camera stopped")
+#         except:
+#             pass
+        
+#         print("[Main] Shutdown complete")
+
+def test():
+    return
 
 def main():
     # Start serial reader thread
@@ -772,11 +859,28 @@ def main():
     
     try:
         # Start the main yellow-following loop
-        drive()
+        test()
     finally:
-        # Clean shutdown of threads
+        # Emergency shutdown - ensure motors are stopped
+        print("\n[Main] Shutting down...")
+        try:
+            pi_2_ard("MF0", max_retries=5, timeout=0.2)
+            pi_2_ard("DBM", max_retries=3, timeout=0.2)
+        except:
+            pass
+        
+        # Clean shutdown of threads and camera
         stop_User_Input()
         stop_serial_reader()
+        
+        try:
+            picam.stop()
+            print("[Main] Camera stopped")
+        except:
+            pass
+        
+        print("[Main] Shutdown complete")
+
 
 if __name__ == "__main__":
     main()
