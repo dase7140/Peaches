@@ -730,6 +730,10 @@ def drive():
                 if not reposition():
                     print("[Drive] Repositioning failed - staying stopped")
                     time.sleep(0.5)
+                else:
+                    # Repositioning succeeded - reset steering state to resume driving
+                    print("[Drive] Repositioning succeeded - resuming yellow line following")
+                    last_steering_cmd = None  # Force next steering command to be sent
             
             # ===== PIXICAM TARGET DETECTION AND BRUSH MOTOR CONTROL =====
             try:
