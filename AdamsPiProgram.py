@@ -247,10 +247,10 @@ def drive():
                     pi_2_ard("DBM")  # Stop Brush Motor
                     brushMotorOn = False
             if yellowFlagCurrent and yellowFlagLast is not True:
-                pi_2_ard("DBI")
+                pi_2_ard("MF0")
                 print("Sent DBI (yellow acquired)")
             elif not yellowFlagCurrent and yellowFlagLast is not False:
-                pi_2_ard("YLL")
+                pi_2_ard("MF0")
                 print("Sent YLL (yellow lost)")
 
         yellowFlagLast = yellowFlagCurrent
