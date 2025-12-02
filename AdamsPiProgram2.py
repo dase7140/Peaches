@@ -495,7 +495,9 @@ def compute_error(centroid_y, image_height):
 
 # Yellow Line Following Control Parameters
 ERROR_THRESHOLD = 70        # Deadband in pixels - go straight if error < this
-ANGLE_THRESHOLD = 10        # Anglular deadband - dont turn if angle is less than threshold
+ANGLE_THRESHOLD = 10        # Angular deadband - dont turn if angle is less than threshold
+EXTREME_ERROR_THRESHOLD = 150  # Pixels - switch from veer to full turn if error exceeds this
+EXTREME_ANGLE_THRESHOLD = 35   # Degrees - switch from veer to full turn if angle exceeds this
 BASE_SPEED = 2              # Default speed level (1-5)
 TURN_SPEED = 1              # Speed when turning to follow line
 VEER_SPEED = 2              # speed when veering
@@ -528,20 +530,58 @@ def yellow_line_steering(error):
         return f"MR{TURN_SPEED}"
 
 def yellow_line_steering_ellipse(y_error, angle):
-    if abs(y_error) < ERROR_THRESHOLD: # if the ellipse is centered, stear to align angle
+    """
+    Enhanced ellipse-based steering with progressive response:
+    - Extreme errors: Stop and do full turn (ML/MR)
+    - Moderate errors: Veer to correct (VL/VR)
+    - Small errors: Go straight (MF)
+    
+    Args:
+        y_error: float - Vertical centroid error in pixels
+        angle: float - Ellipse angle in degrees
+        
+    Returns:
+        str - Motor command (e.g., "MF2", "VL2", "ML1")
+    """
+    # Check for EXTREME conditions requiring full stop and turn
+    # Priority 1: Extreme centroid error
+    if abs(y_error) > EXTREME_ERROR_THRESHOLD:
+        if y_error > 0:
+            # Yellow too far - stop and turn LEFT
+            return f"ML{TURN_SPEED}"
+        else:
+            # Yellow too close - stop and turn RIGHT
+            return f"MR{TURN_SPEED}"
+    
+    # Priority 2: Extreme angle error (even if centroid is centered)
+    if abs(angle) > EXTREME_ANGLE_THRESHOLD:
+        if angle < 0:
+            # Line angled left - stop and turn LEFT to straighten
+            return f"ML{TURN_SPEED}"
+        else:
+            # Line angled right - stop and turn RIGHT to straighten
+            return f"MR{TURN_SPEED}"
+    
+    # MODERATE conditions - veer while moving forward
+    # Centroid is reasonably centered, adjust angle with veering
+    if abs(y_error) < ERROR_THRESHOLD:
         if abs(angle) < ANGLE_THRESHOLD:
+            # Both centered - go straight
             return f"MF{BASE_SPEED}"
         elif angle < 0:
-            return  f"VL{VEER_SPEED}"
-        else:
-            return f"VR{VEER_SPEED}"
-    else:
-        # Positive error - yellow is too far, turn LEFT to get closer
-        if y_error > 0:
+            # Line angled left - veer left to align
             return f"VL{VEER_SPEED}"
-
-        # Negative error - yellow is too close, turn RIGHT to move away
         else:
+            # Line angled right - veer right to align
+            return f"VR{VEER_SPEED}"
+    
+    # Centroid has moderate error - veer to correct
+    else:
+        if y_error > 0:
+            # Yellow too far - veer LEFT to get closer
+            return f"VL{VEER_SPEED}"
+        else:
+            # Yellow too close - veer RIGHT to move away
             return f"VR{VEER_SPEED}"
 
 
@@ -725,11 +765,11 @@ def reposition():
             if angle_error > 0:
                 print(f"[Reposition] Line angled right ({angle:.1f}°) - turning RIGHT to align")
                 pi_2_ard("MR1")
-                time.sleep(turn_duration)
+                time.sleep(turn_duration + 0.3)
             else:
                 print(f"[Reposition] Line angled left ({angle:.1f}°) - turning LEFT to align")
                 pi_2_ard("ML1")
-                time.sleep(turn_duration)
+                time.sleep(turn_duration + 0.3)
             
             pi_2_ard("MF0")  # Stop motors
             print("[Reposition] Ellipse alignment complete")
@@ -764,9 +804,9 @@ def reposition():
     if back_distance > BACK_CLEAR_THRESHOLD:
         print(f"[Reposition] Back clear ({back_distance}mm) - reversing")
         pi_2_ard("MB2")  # Reverse at speed 2
-        time.sleep(0.1)  # Reverse for 100ms
+        time.sleep(0.4)  # Reverse for 400ms
         pi_2_ard("MF0")  # Stop motors
-        time.sleep(0.1)
+        time.sleep(0.4)
     else:
         print(f"[Reposition] Back blocked ({back_distance}mm) - skipping reverse")
     
@@ -789,15 +829,15 @@ def reposition():
     if left_area < MINIMUM_CLEARANCE and right_area < MINIMUM_CLEARANCE:
         print(f"[Reposition] Both sides blocked (L:{left_area}, R:{right_area}) - attempting large turn")
         pi_2_ard("ML1")  # Turn left
-        time.sleep(0.2)  # Turn for 200ms 
+        time.sleep(0.5)  # Turn for 500ms 
     elif left_area > right_area:
         print(f"[Reposition] Turning LEFT (left area larger by {left_area - right_area}mm)")
         pi_2_ard("ML1")  # Turn left at speed 2
-        time.sleep(0.2)  # Turn for 200ms
+        time.sleep(0.5)  # Turn for 500ms
     else:
         print(f"[Reposition] Turning RIGHT (right area larger by {right_area - left_area}mm)")
         pi_2_ard("MR1")  # Turn right at speed 1
-        time.sleep(0.2)  # Turn for 200ms
+        time.sleep(0.5)  # Turn for 500ms
     
     pi_2_ard("MF0")  # Stop motors
     
