@@ -748,7 +748,7 @@ void loop() {
 
   
   // If line following is active, continuously execute drive_IR with speed adjustment
-  if (lineFollowingActive && !safetyStopActive) {
+  if (lineFollowingActive) {
     // Check if bridge mode timer is active
     if (bridgeModeActive) {
       unsigned long elapsedTime = millis() - bridgeModeStartTime;
@@ -787,15 +787,5 @@ void loop() {
     
     // Execute line following with current speed
     drive_IR(current_speed);
-  }
-
-  // Check for obstacles and trigger repositioning if needed
-  checkFrontObstacles();
-  
-  // If safety stop was triggered, perform autonomous repositioning
-  if (safetyStopActive && !inGracePeriod) {
-    repositionArduino();
-    // Reset safety stop flag after repositioning
-    safetyStopActive = false;
   }
 }
