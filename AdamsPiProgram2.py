@@ -713,7 +713,6 @@ def wait_for_start():
         print('Not started. Please type "Start" or "EXIT".')
 
 
-
 def reposition():
     """
     Intelligent repositioning function when obstacle detected.
@@ -722,7 +721,7 @@ def reposition():
     1. Try to find yellow line ellipse and align to it
        - If angle is off, turn to straighten the ellipse
        - Target angle is 0° (horizontal line in upside-down view)
-    2. If no ellipse found, fall back to IR sensor-based repositioning
+    2. ALWAYS back away from walls and create clearance space
        - Read IR sensors to assess surroundings
        - If back is clear (>100mm), reverse to create space
        - Calculate left area vs right area and turn towards clearance
@@ -732,7 +731,9 @@ def reposition():
     """
     print("[Reposition] Starting repositioning maneuver")
     
-    # PRIORITY 1: Try to align to yellow line ellipse
+    ellipse_aligned = False
+    
+    # STEP 1: Try to align to yellow line ellipse
     try:
         # Capture and process frame
         hsv_frame = capture_image()
@@ -746,8 +747,6 @@ def reposition():
             print(f"[Reposition] Yellow ellipse found: angle={angle:.1f}°")
             
             # Target angle is 0° (horizontal line when camera upside down on left side)
-            # Camera orientation: upside down on LEFT
-            # When line is straight ahead, it appears horizontal in upside-down view
             TARGET_ANGLE = 0.0
             ANGLE_THRESHOLD = 15.0  # degrees - deadband for "close enough"
             
@@ -755,49 +754,48 @@ def reposition():
             
             if abs(angle_error) < ANGLE_THRESHOLD:
                 print(f"[Reposition] Ellipse already aligned (error: {angle_error:.1f}°)")
-                return True
-            
-            # Determine turn direction and duration based on angle error
-            # Positive angle error = line angled right → turn RIGHT to straighten
-            # Negative angle error = line angled left → turn LEFT to straighten
-            turn_duration = min(abs(angle_error) / 180.0, 0.5)  # Scale turn time, max 0.5s
-            
-            if angle_error > 0:
-                print(f"[Reposition] Line angled right ({angle:.1f}°) - turning RIGHT to align")
-                pi_2_ard("MR2")
-                time.sleep(turn_duration + 0.3)
+                ellipse_aligned = True
             else:
-                print(f"[Reposition] Line angled left ({angle:.1f}°) - turning LEFT to align")
-                pi_2_ard("ML2")
-                time.sleep(turn_duration + 0.3)
-            
-            pi_2_ard("MF0")  # Stop motors
-            print("[Reposition] Ellipse alignment complete")
-            return True
+                # Determine turn direction and duration based on angle error
+                turn_duration = min(abs(angle_error) / 180.0, 0.5)  # Scale turn time, max 0.5s
+                
+                if angle_error > 0:
+                    print(f"[Reposition] Line angled right ({angle:.1f}°) - turning RIGHT to align")
+                    pi_2_ard("MR2")
+                    time.sleep(turn_duration + 0.3)
+                else:
+                    print(f"[Reposition] Line angled left ({angle:.1f}°) - turning LEFT to align")
+                    pi_2_ard("ML2")
+                    time.sleep(turn_duration + 0.3)
+                
+                pi_2_ard("MF0")  # Stop motors
+                print("[Reposition] Ellipse alignment complete")
+                ellipse_aligned = True
+        else:
+            print("[Reposition] No ellipse found")
             
     except Exception as e:
         print(f"[Reposition] Error during ellipse alignment: {e}")
-        # Fall through to IR sensor method
     
-    # FALLBACK: IR sensor-based repositioning
-    print("[Reposition] No ellipse found - using IR sensor method")
+    # STEP 2: ALWAYS perform IR sensor-based obstacle clearance
+    print("[Reposition] Clearing space around robot using IR sensors")
     
-    # Step 1: Read current sensor values
+    # Read current sensor values
     ir_data = read_ir_sensors()
     if ir_data is None or not ir_data.valid:
         print("[Reposition] Failed to read IR sensors")
-        return False
+        return ellipse_aligned  # Return ellipse status even if IR fails
     
     print(f"[Reposition] Sensor readings: {ir_data}")
     
-    # Helper function to cap sensor readings (VL53L0X returns 8190+ when out of range)
+    # Helper function to cap sensor readings
     def cap_distance(distance, max_distance=2000):
         """Cap distance readings to handle out-of-range sensors"""
         if distance >= 8000:  # VL53L0X out-of-range indicator
             return max_distance
         return min(distance, max_distance)
     
-    # Step 2: Check if back is clear and reverse if possible
+    # Check if back is clear and reverse if possible
     BACK_CLEAR_THRESHOLD = 100  # mm
     back_distance = cap_distance(ir_data.back)
     
@@ -810,7 +808,7 @@ def reposition():
     else:
         print(f"[Reposition] Back blocked ({back_distance}mm) - skipping reverse")
     
-    # Step 3: Cap sensor readings and calculate left and right clearance areas
+    # Cap sensor readings and calculate left and right clearance areas
     front_left_capped = cap_distance(ir_data.front_left)
     left_capped = cap_distance(ir_data.left)
     front_right_capped = cap_distance(ir_data.front_right)
@@ -822,14 +820,13 @@ def reposition():
     print(f"[Reposition] Left area: {left_area}mm (FL:{front_left_capped} + L:{left_capped})")
     print(f"[Reposition] Right area: {right_area}mm (FR:{front_right_capped} + R:{right_capped})")
     
-    # Step 4: Turn towards the direction with more clearance
-    MIN_AREA_DIFFERENCE = 100  # mm - Minimum difference to prefer one side
+    # Turn towards the direction with more clearance
     MINIMUM_CLEARANCE = 300     # mm - Minimum total area to consider turning
     
     if left_area < MINIMUM_CLEARANCE and right_area < MINIMUM_CLEARANCE:
         print(f"[Reposition] Both sides blocked (L:{left_area}, R:{right_area}) - attempting large turn")
         pi_2_ard("ML2")  # Turn left
-        time.sleep(0.5)  # Turn for 500ms 
+        time.sleep(0.5)  # Turn for 500ms
     elif left_area > right_area:
         print(f"[Reposition] Turning LEFT (left area larger by {left_area - right_area}mm)")
         pi_2_ard("ML2")  # Turn left at speed 2
@@ -842,8 +839,7 @@ def reposition():
     pi_2_ard("MF0")  # Stop motors
     
     print("[Reposition] Repositioning complete")
-    return True
-
+    return True  # Success if we completed both steps
 
 
 def drive():
