@@ -203,29 +203,29 @@ void BrushMotorOff(){
 void turnLeft(int spd){
   left_speed_target = -spd;
   right_speed_target = spd;
-  // left_motor.drive(-spd);
-  // right_motor.drive(spd);
+  left_motor.drive(-spd);
+  right_motor.drive(spd);
 }
 
 void turnRight(int spd){
   left_speed_target = spd;
   right_speed_target = -spd;
-  // left_motor.drive(spd);
-  // right_motor.drive(-spd);
+  left_motor.drive(spd);
+  right_motor.drive(-spd);
 }
 
 void veerLeft(int leftSpd, int rightSpd){
   left_speed_target = leftSpd;
   right_speed_target = rightSpd;
-  // left_motor.drive(leftSpd);
-  // right_motor.drive(rightSpd);
+  left_motor.drive(leftSpd);
+  right_motor.drive(rightSpd);
 }
 
 void veerRight(int leftSpd, int rightSpd){
   left_speed_target = leftSpd;
   right_speed_target = rightSpd;
-    // left_motor.drive(leftSpd);
-    // right_motor.drive(rightSpd);
+    left_motor.drive(leftSpd);
+    right_motor.drive(rightSpd);
 }
 
 void drive_IR() {
@@ -234,15 +234,15 @@ void drive_IR() {
   
   // Both sensors read 1 (both on line) - go forward
   if (yellowState == 1 && whiteState == 1) {
-    forward(left_motor, right_motor, 180);
+    forward(left_motor, right_motor, 150);
   }
   // White sensor triggered (0) - turn left
   else if (whiteState == 0) {
-    turnLeft(180);
+    turnLeft(150);
   }
   // Yellow sensor triggered (0) - turn right
   else if (yellowState == 0) {
-    turnRight(180);
+    turnRight(150);
   }
 }
 
