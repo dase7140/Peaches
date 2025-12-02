@@ -419,7 +419,7 @@ def find_yellow_ellipse(mask):
     
     ellipse = cv2.fitEllipse(largest_contour)
     ((_, cy), (_, _), angle) = ellipse
-    angle = angle-180
+    angle = angle-90
 
     return True, cy, angle
 
