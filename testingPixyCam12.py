@@ -92,7 +92,7 @@ def Pixicam():  # FOR DICE
                     y = blocks[i].m_y
 
                     # IGNORE dice in top half of screen
-                    if y < 104:   # top half
+                    if y < 100:   # top half
                         continue  # skip it
 
                     # valid block found in bottom half
@@ -130,10 +130,10 @@ def lookForFlags():
         # Map signatures to booleans
         seen = {sig: seeColor(sig, count) for sig in COLOR_MAP.values()}
 
-        # Example logic (update to match your course definitions):
+        # Example logic 
         first_flag = seen.get(COLOR_MAP["orange"], False) and seen.get(COLOR_MAP["purple"], False)
         second_flag = seen.get(COLOR_MAP["orange"], False) and seen.get(COLOR_MAP["l_blue"], False)
-        third_flag = seen.get(COLOR_MAP["purple"], False) and seen.get(COLOR_MAP["blue"], False)
+        third_flag = seen.get(COLOR_MAP["purple"], False) and seen.get(COLOR_MAP["l_blue"], False)
 
         return True, first_flag, second_flag, third_flag
     except Exception as e:
@@ -187,7 +187,7 @@ def mainLoop(): #logic for dice vs flag prioiritization
         diceSeen = Pixicam()
         if diceSeen:
             print("Dice seen")
-            time.sleep(.02)
 
 if __name__ == '__main__':
     mainLoop()
+    time.sleep(0.02)
