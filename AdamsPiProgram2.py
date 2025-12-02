@@ -1162,7 +1162,221 @@ def drive():
     
     print("[Drive] Control loop ended")
 
+def reposition2():
+    """
+    Intelligent repositioning function when obstacle detected.
+    
+    Strategy:
+    1. Try to find yellow line ellipse and align to it
+       - If angle is off, turn to straighten the ellipse
+       - Target angle is 0° (horizontal line in upside-down view)
+    2. If no ellipse found, fall back to IR sensor-based repositioning
+       - Read IR sensors to assess surroundings
+       - If back is clear (>100mm), reverse to create space
+       - Calculate left area vs right area and turn towards clearance
+    
+    Returns:
+        bool - True if repositioning succeeded, False if failed
+    """
+    print("[Reposition] Starting repositioning maneuver")
+        
+    # Step 1: Read current sensor values
+    ir_data = read_ir_sensors()
+    if ir_data is None or not ir_data.valid:
+        print("[Reposition] Failed to read IR sensors")
+        return False
+    
+    print(f"[Reposition] Sensor readings: {ir_data}")
+    
+    # Helper function to cap sensor readings (VL53L0X returns 8190+ when out of range)
+    def cap_distance(distance, max_distance=2000):
+        """Cap distance readings to handle out-of-range sensors"""
+        if distance >= 8000:  # VL53L0X out-of-range indicator
+            return max_distance
+        return min(distance, max_distance)
+    
+    # Step 2: Check if back is clear and reverse if possible
+    BACK_CLEAR_THRESHOLD = 100  # mm
+    back_distance = cap_distance(ir_data.back)
+    
+    if back_distance > BACK_CLEAR_THRESHOLD:
+        print(f"[Reposition] Back clear ({back_distance}mm) - reversing")
+        pi_2_ard("MB3")  # Reverse at speed 3
+        time.sleep(0.2)  # Reverse for 200ms
+        pi_2_ard("MF0")  # Stop motors
+        time.sleep(0.2)
+    else:
+        print(f"[Reposition] Back blocked ({back_distance}mm) - skipping reverse")
+    
+    # Step 3: Cap sensor readings and calculate left and right clearance areas
+    front_left_capped = cap_distance(ir_data.front_left)
+    left_capped = cap_distance(ir_data.left)
+    front_right_capped = cap_distance(ir_data.front_right)
+    right_capped = cap_distance(ir_data.right)
+    
+    left_area = front_left_capped + left_capped
+    right_area = front_right_capped + right_capped
+    
+    print(f"[Reposition] Left area: {left_area}mm (FL:{front_left_capped} + L:{left_capped})")
+    print(f"[Reposition] Right area: {right_area}mm (FR:{front_right_capped} + R:{right_capped})")
+    
+    # Step 4: Turn towards the direction with more clearance
+    
+    if left_area > right_area:
+        print(f"[Reposition] Turning LEFT (left area larger by {left_area - right_area}mm)")
+        pi_2_ard("ML5")  # Turn left at speed 5
+        time.sleep(0.2)  # Turn for 200ms
+    else:
+        print(f"[Reposition] Turning RIGHT (right area larger by {right_area - left_area}mm)")
+        pi_2_ard("MR5")  # Turn right at speed 5
+        time.sleep(0.2)  # Turn for 200ms
+    
+    pi_2_ard("MF0")  # Stop motors
+    
+    print("[Reposition] Repositioning complete")
+    return True
 
+def drive2():
+    """
+    Main driving control loop using Arduino autonomous navigation.
+    Arduino handles line following and obstacle avoidance independently.
+    Pi only takes manual control when Pixicam detects a target for steering.
+    """
+    global user_stop_requested, estop_triggered, onGravel, onBridge
+    
+    print("[Drive] Starting main control loop")
+    print("[Drive] Type 'STOP' at any time to emergency stop")
+    
+    # Brush motor state management
+    brush_motor_active = False
+    brush_motor_off_time = None
+    BRUSH_MOTOR_DELAY = 5.0  # seconds to keep brush on after target disappears
+    
+    # Control mode state
+    autonomous_mode = True  # True = Arduino controls, False = Pi controls
+    sd5_sent = False  # Track if SD5 command has been sent
+    
+    # Manual control tracking
+    last_manual_cmd = None
+    manual_control_start_time = None
+    
+    # Pixy camera error tracking
+    pixy_error_count = 0
+    MAX_PIXY_ERRORS = 10  # Warn after this many consecutive errors
+    
+    # Pixicam target steering parameters
+    PIXY_CENTER_X = 158  # Center X coordinate of Pixy camera (316/2)
+    PIXY_DEADBAND = 30   # Pixels - don't steer if target within this range of center
+    
+    try:
+        # Start Arduino autonomous line following
+        print("[Drive] Starting Arduino autonomous mode (SD5)")
+        pi_2_ard("SD5")
+        sd5_sent = True
+        autonomous_mode = True
+
+        while True:
+            # Check for user stop command
+            if user_stop_requested:
+                print("\n[Drive] User STOP command received - shutting down motors")
+                pi_2_ard("MF0", max_retries=5, timeout=0.2)  # Stop motors
+                pi_2_ard("DBM", max_retries=3, timeout=0.2)  # Turn off brush motor
+                break
+            
+            # Check for Arduino emergency stop
+            if estop_triggered:
+                print("\n[Drive] Arduino ESTOP - handling repositioning autonomously")
+                estop_triggered = False  # Reset flag
+                # Arduino automatically resumes drive_IR after repositionArduino() completes
+                # No action needed from Pi
+            
+            # # ===== PIXICAM TARGET DETECTION AND CONTROL MODE SWITCHING =====
+            # try:
+            #     target_detected = Pixicam()
+            #     pixy_error_count = 0  # Reset error count on successful read
+            # except Exception as e:
+            #     # Pixy error - assume no target detected
+            #     target_detected = False
+            #     pixy_error_count += 1
+                
+            #     # Warn if errors persist
+            #     if pixy_error_count == MAX_PIXY_ERRORS:
+            #         print(f"[Pixy] WARNING: {MAX_PIXY_ERRORS} consecutive errors - camera may be disconnected")
+            #         print("[Pixy] Continuing without target detection...")
+
+            # # TARGET DETECTED - Switch to manual control for steering
+            # if target_detected:
+            #     # Get target X position for steering
+            #     count = pixy.ccc_get_blocks(100, blocks)
+            #     target_x = getTargetX(target_signature, count)
+                
+            #     if target_x != -1:
+            #         # Switch to manual control mode if not already
+            #         if autonomous_mode:
+            #             print("[Drive] Target detected - switching to MANUAL CONTROL")
+            #             autonomous_mode = False
+            #             sd5_sent = False
+            #             manual_control_start_time = time.time()
+                    
+            #         # Calculate steering based on target position
+            #         x_error = target_x - PIXY_CENTER_X
+                    
+            #         # Determine steering command
+            #         if abs(x_error) < PIXY_DEADBAND:
+            #             # Target centered - go straight
+            #             steering_cmd = "MF3"
+            #         elif x_error > 0:
+            #             # Target to the right - turn right
+            #             steering_cmd = "MR3"
+            #         else:
+            #             # Target to the left - turn left
+            #             steering_cmd = "ML3"
+                    
+            #         # Send command if different from last
+            #         if steering_cmd != last_manual_cmd:
+            #             pi_2_ard(steering_cmd)
+            #             last_manual_cmd = steering_cmd
+            #             print(f"[Drive] Manual steering: X={target_x}, error={x_error:.0f} → {steering_cmd}")
+                    
+            #         # Activate brush motor
+            #         if not brush_motor_active:
+            #             if not onGravel:
+            #                 print("[Drive] Activating brush motor")
+            #                 pi_2_ard("ABM")
+            #                 brush_motor_active = True
+                    
+            #         # Cancel brush motor shutdown timer
+            #         brush_motor_off_time = None
+                    
+            # NO TARGET - Return to autonomous mode
+            else:
+                # Switch back to autonomous mode if we were in manual
+                if not autonomous_mode:
+                    print("[Drive] Target lost - returning to AUTONOMOUS MODE")
+                    pi_2_ard("SD5")
+                    sd5_sent = True
+                    autonomous_mode = True
+                    last_manual_cmd = None
+                
+                # Handle brush motor shutdown timer
+                if brush_motor_active:
+                    if brush_motor_off_time is None:
+                        print(f"[Drive] Target lost - brush motor will turn off in {BRUSH_MOTOR_DELAY}s")
+                        brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
+                    elif time.time() >= brush_motor_off_time:
+                        print("[Drive] Turning off brush motor")
+                        pi_2_ard("DBM")
+                        brush_motor_active = False
+                        brush_motor_off_time = None
+            
+            time.sleep(0.05)  # Small delay to prevent busy loop
+            
+    except KeyboardInterrupt:
+        print("\n[Drive] Keyboard interrupt - shutting down motors")
+        pi_2_ard("MF0", max_retries=5, timeout=0.2)
+        pi_2_ard("DBM", max_retries=3, timeout=0.2)
+    
+    print("[Drive] Control loop ended")
 
 def main():
     # Start serial reader thread
@@ -1176,7 +1390,7 @@ def main():
     
     try:
         # Start the main yellow-following loop
-        drive()
+        drive2()
     finally:
         # Emergency shutdown - ensure motors are stopped
         print("\n[Main] Shutting down...")

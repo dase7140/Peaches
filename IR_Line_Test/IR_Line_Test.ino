@@ -29,6 +29,17 @@ void tcaSelect(uint8_t channel) {
     Wire.endTransmission();
 }
 
+void LineSensorSetup(){
+  pinMode(yellowPin, INPUT);
+  pinMode(whitePin, INPUT);
+  Serial.println("Line Sensors Initialized");
+} 
+
+void ReadLineSensors(int &yellowState, int &whiteState){
+  yellowState = digitalRead(yellowPin);
+  whiteState = digitalRead(whitePin);
+} 
+
 void IRSensorSetup() {
     Wire.begin();
     Serial.println("Initializing multiple VL53L0X sensors...");
@@ -42,11 +53,7 @@ void IRSensorSetup() {
       Serial.print("VL53L0X sensor initialized on channel ");
       Serial.println(i);
     }
-    
-    // Initialize IR line sensors
-    pinMode(yellowPin, INPUT);
-    pinMode(whitePin, INPUT);
-    Serial.println("IR Line Sensors Initialized");
+  
 }
 
 void ReadAllIRDistances(int distances[]) {
@@ -69,6 +76,8 @@ void ReadFrontIRDistances(int &leftFront, int &rightFront) {
   lox[1].rangingTest(&measureRight, false);
   rightFront = measureRight.RangeMilliMeter;
 }
+
+
 
 // =============================================================
 // Drive Motor Setup - SparkFun TB6612FNG
@@ -232,10 +241,12 @@ void drive_IR(int speed) {
   else if (yellowState == 0) {
     turnRight(speed);
   }
+
+  
 }
 
 // Arduino Safety Stop System
-const int CRITICAL_STOP_DISTANCE = 300;  // mm - Emergency stop threshold
+const int CRITICAL_STOP_DISTANCE = 115;  // mm - Emergency stop threshold
 const unsigned long GRACE_PERIOD = 3000; // ms - 3 seconds to reposition after Pi override
 unsigned long graceStartTime = 0;        // When Pi override began
 bool safetyStopActive = false;           // True when Arduino has stopped due to obstacle
@@ -275,6 +286,68 @@ void checkFrontObstacles() {
   }
 }
 
+// Helper function to cap sensor readings (VL53L0X returns 8190+ when out of range)
+int capDistance(int distance, int maxDistance) {
+  if (distance >= 8000) {  // VL53L0X out-of-range indicator
+    return maxDistance;
+  }
+  return min(distance, maxDistance);
+}
+
+void repositionArduino() {
+  /*
+   * Intelligent repositioning function when obstacle detected.
+   * Arduino-based version that doesn't rely on Pi for repositioning.
+   * 
+   * Strategy:
+   * 1. Read IR sensors to assess surroundings
+   * 2. If back is clear (>100mm), reverse to create space
+   * 3. Calculate left area vs right area and turn towards clearance
+   */
+  
+  // Step 1: Read all IR sensor distances
+  int IR_distances[numIRSensors];
+  ReadAllIRDistances(IR_distances);
+  
+  // Extract individual sensor readings
+  int leftDist = IR_distances[0];
+  int frontRightDist = IR_distances[1];
+  int frontLeftDist = IR_distances[2];
+  int rightDist = IR_distances[3];
+  int backDist = IR_distances[4];
+  
+  // Step 2: Check if back is clear and reverse if possible
+  const int BACK_CLEAR_THRESHOLD = 100;  // mm
+  int cappedBackDist = capDistance(backDist, 2000);
+  
+  if (cappedBackDist > BACK_CLEAR_THRESHOLD) {
+    back(left_motor, right_motor, SPEED_3);
+    delay(200);  // Reverse for 200ms
+    brake(left_motor, right_motor);
+    delay(200);
+  }
+  
+  // Step 3: Cap sensor readings and calculate left and right clearance areas
+  int frontLeftCapped = capDistance(frontLeftDist, 2000);
+  int leftCapped = capDistance(leftDist, 2000);
+  int frontRightCapped = capDistance(frontRightDist, 2000);
+  int rightCapped = capDistance(rightDist, 2000);
+  
+  int leftArea = frontLeftCapped + leftCapped;
+  int rightArea = frontRightCapped + rightCapped;
+  
+  // Step 4: Turn towards the direction with more clearance
+  if (leftArea > rightArea) {
+    turnLeft(SPEED_5);
+    delay(200);  // Turn for 200ms
+  } else {
+    turnRight(SPEED_5);
+    delay(200);  // Turn for 200ms
+  }
+  
+  brake(left_motor, right_motor);
+}
+
 
 
 // Brush motor state (independent of movement)
@@ -282,6 +355,12 @@ bool brushMotorActive = false;
 
 // Line following state
 bool lineFollowingActive = false;
+
+// Bridge mode state
+bool bridgeModeActive = false;
+unsigned long bridgeModeStartTime = 0;
+const unsigned long BRIDGE_MODE_DURATION = 10000;  // 10 seconds in milliseconds
+int desiredSpeed = SPEED_5;  // Default to fast speed
 
 
 
@@ -295,6 +374,8 @@ void setup() {
   CommsSetup();
   // IR Sensors
   IRSensorSetup();
+  // Line Sensors
+  LineSensorSetup();
   // Drive Motors
   DriveMotorSetup();
   // Brush Motor
@@ -609,33 +690,49 @@ void loop() {
       Serial.println();
     }
 
+    // Read Line Sensor States
+    else if (msg == "RLS") {
+      Serial.println("ACK:RLS");
+      int yellowState, whiteState;
+      ReadLineSensors(yellowState, whiteState);
+      Serial.print("LS:");
+      Serial.print(yellowState);
+      Serial.print(",");
+      Serial.println(whiteState);
+    }
+
     // Drive_IR - Enable line following mode
     else if (msg == "SD1") {
       safetyStopActive = false;
+      bridgeModeActive = false;  // Reset bridge mode
       current_speed = SPEED_1;
       lineFollowingActive = true;
       Serial.println("ACK:SD1");
     }
     else if (msg == "SD2") {
       safetyStopActive = false;
+      bridgeModeActive = false;  // Reset bridge mode
       current_speed = SPEED_2;
       lineFollowingActive = true;
       Serial.println("ACK:SD2");
     }
     else if (msg == "SD3") {
       safetyStopActive = false;
+      bridgeModeActive = false;  // Reset bridge mode
       current_speed = SPEED_3;
       lineFollowingActive = true;
       Serial.println("ACK:SD3");
     }
     else if (msg == "SD4") {
       safetyStopActive = false;
+      bridgeModeActive = false;  // Reset bridge mode
       current_speed = SPEED_4;
       lineFollowingActive = true;
       Serial.println("ACK:SD4");
     }
     else if (msg == "SD5") {
       safetyStopActive = false;
+      bridgeModeActive = false;  // Reset bridge mode
       current_speed = SPEED_5;
       lineFollowingActive = true;
       Serial.println("ACK:SD5");
@@ -650,13 +747,55 @@ void loop() {
   
 
   
-  // If line following is active, continuously execute drive_IR
-  if (lineFollowingActive) {
+  // If line following is active, continuously execute drive_IR with speed adjustment
+  if (lineFollowingActive && !safetyStopActive) {
+    // Check if bridge mode timer is active
+    if (bridgeModeActive) {
+      unsigned long elapsedTime = millis() - bridgeModeStartTime;
+      
+      if (elapsedTime >= BRIDGE_MODE_DURATION) {
+        // Timer expired - exit bridge mode and return to normal speed
+        bridgeModeActive = false;
+        bridgeModeStartTime = 0;
+        current_speed = SPEED_5;
+      } else {
+        // Still in bridge mode - stay at slow speed
+        current_speed = SPEED_1;
+      }
+    } else {
+      // Not in bridge mode - check IR sensors for bridge detection
+      int IR_distances[numIRSensors];
+      ReadAllIRDistances(IR_distances);
+      
+      // Check if ANY sensor reads below 500mm (obstacle/wall detected)
+      bool anyObstacle = (IR_distances[0] < 500 ||   // Left
+                         IR_distances[1] < 500 ||   // Front Right
+                         IR_distances[2] < 500 ||   // Front Left
+                         IR_distances[3] < 500 ||   // Right
+                         IR_distances[4] < 500);    // Back
+      
+      if (anyObstacle) {
+        // Obstacles present - use fast speed
+        current_speed = SPEED_5;
+      } else {
+        // All sensors clear (>500mm) - entering bridge mode
+        current_speed = SPEED_1;
+        bridgeModeActive = true;
+        bridgeModeStartTime = millis();
+      }
+    }
+    
+    // Execute line following with current speed
     drive_IR(current_speed);
   }
-  else {
-    // Otherwise, check for obstacles only when not line following
-    checkFrontObstacles();
-  }
+
+  // Check for obstacles and trigger repositioning if needed
+  checkFrontObstacles();
   
+  // If safety stop was triggered, perform autonomous repositioning
+  if (safetyStopActive && !inGracePeriod) {
+    repositionArduino();
+    // Reset safety stop flag after repositioning
+    safetyStopActive = false;
+  }
 }
