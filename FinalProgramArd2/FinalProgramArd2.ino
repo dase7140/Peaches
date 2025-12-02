@@ -307,8 +307,11 @@ void loop() {
   else{
     left_speed_current = left_speed_target;
   }
-  if(left_speed_target != 0 && abs(left_speed_current)<CUTOFF_BAND){//skips time where motor speed is too slow to move
-    if(left_speed_target>0){
+  
+  // Apply cutoff band ONLY when accelerating from stopped (not when decelerating to stop)
+  if(left_speed_target != 0 && left_speed_current != 0 && abs(left_speed_current) < CUTOFF_BAND){
+    // Skip the "dead zone" where motor is too weak to move
+    if(left_speed_current > 0){
       left_speed_current = CUTOFF_BAND;
     }
     else{
@@ -316,6 +319,7 @@ void loop() {
     }
   }
 
+  // Same logic for right motor
   if(abs(right_speed_target-right_speed_current) > ACC_INCREMENT){
     if((right_speed_current - right_speed_target)>0){
       right_speed_current -= ACC_INCREMENT;
@@ -327,14 +331,17 @@ void loop() {
   else{
     right_speed_current = right_speed_target;
   }
-  if(right_speed_target != 0 && abs(right_speed_current)<CUTOFF_BAND){//skips time where motor speed is too slow to move
-    if(right_speed_target>0){
+  
+  // Apply cutoff band ONLY when accelerating from stopped (not when decelerating to stop)
+  if(right_speed_target != 0 && right_speed_current != 0 && abs(right_speed_current) < CUTOFF_BAND){
+    // Skip the "dead zone" where motor is too weak to move
+    if(right_speed_current > 0){
       right_speed_current = CUTOFF_BAND;
     }
     else{
       right_speed_current = -CUTOFF_BAND;
     }
-  }  
+  }
 
   left_motor.drive(left_speed_current);
   right_motor.drive(right_speed_current);  
