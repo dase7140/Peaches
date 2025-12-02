@@ -131,6 +131,10 @@ def lookForFlags():
             return True, False, False, False
         else:
             for i in range(count):
+                colorSig = blocks[i].m_signature
+                h =  blocks[i].m_height
+                w =  blocks[i].m_width
+                print("Block found: color:",colorSig,"h:",h,"w:",w)
                 tempColor = getColor(count)
                 if tempColor == COLOR_MAP["orange"]:
                     if blocks[i].m_width > FLAG_WIDTH:
@@ -163,6 +167,8 @@ def pixySetFlags():
         nothing
 
     """
+    print("Setting pixy flags:")
+
     global onGravel, onBridge, BASE_SPEED, TURN_SPEED, VEER_SPEED 
     success, first_flag, second_flag, third_flag = lookForFlags()
     if success == False:
@@ -990,7 +996,7 @@ def drive():
         while True:
             pixySetFlags()
             time.sleep(0.5)
-            
+
         while False:
             # Check for user stop command
             if user_stop_requested:
