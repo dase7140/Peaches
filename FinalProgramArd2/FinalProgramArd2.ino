@@ -562,8 +562,8 @@ void loop() {
     //Stop moving
     else if (msg == "MF0") {
       safetyStopActive = false;
-      left_speed_target = 0
-      right_speed_target = 0
+      left_speed_target = 0;
+      right_speed_target = 0;
       //brake(left_motor, right_motor);
       Serial.println("ACK:MF0");
     }
