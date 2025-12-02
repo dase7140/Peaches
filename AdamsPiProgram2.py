@@ -386,6 +386,9 @@ def clean_mask(mask):
     return cleaned_mask
 
 
+drive_with_ellipse = True
+
+
 def find_yellow_ellipse(mask):
     """
     Fits an elipse to the largest yellow contour in the mask
@@ -416,6 +419,7 @@ def find_yellow_ellipse(mask):
     
     ellipse = cv2.fitEllipse(largest_contour)
     ((_, cy), (_, _), angle) = ellipse
+    angle = angle-180
 
     return True, cy, angle
 
@@ -493,6 +497,7 @@ def compute_error(centroid_y, image_height):
 
 # Yellow Line Following Control Parameters
 ERROR_THRESHOLD = 50        # Deadband in pixels - go straight if error < this
+ANGLE_THRESHOLD = 10        # Anglular deadband - dont turn if angle is less than threshold
 BASE_SPEED = 2              # Default speed level (1-5)
 TURN_SPEED = 2              # Speed when turning to follow line
 
@@ -523,6 +528,24 @@ def yellow_line_steering(error):
     # Negative error - yellow is too close, turn RIGHT to move away
     else:
         return f"MR{TURN_SPEED}"
+
+def yellow_line_steering_ellipse(y_error, angle)
+    if abs(y_error) < ERROR_THRESHOLD # if the ellipse is centered, stear to align angle
+        angle = angle-180
+        if abs(angle) < ANGLE_THRESHOLD:
+            return f"MF{BASE_SPEED}"
+        elif angle > 0 
+            return  f"ML{TURN_SPEED}"
+        else
+            return f"MR{TURN_SPEED}"
+    else 
+        # Positive error - yellow is too far, turn LEFT to get closer
+        if y_error > 0:
+            return f"ML{TURN_SPEED}"
+
+        # Negative error - yellow is too close, turn RIGHT to move away
+        else:
+            return f"MR{TURN_SPEED}"
 
 
 
@@ -799,29 +822,49 @@ def drive():
             found, cx, cy = find_yellow_centroid(cleaned_mask)
             
             if found:
-                # Reset lost counter and search timer - yellow is visible
-                yellow_lost_counter = 0
-                search_start_time = None
-                
-                # Get image dimensions
-                image_height, image_width = hsv_frame.shape[:2]
-                
-                # Compute error (camera is upside down on left side)
-                error = compute_error(cy, image_height)
-                
-                # Generate steering command
-                steering_cmd = yellow_line_steering(error)
-                
-                # Only send command if it's different from last time
-                if steering_cmd != last_steering_cmd:
-                    pi_2_ard(steering_cmd)
-                    last_steering_cmd = steering_cmd
+                if drive_with_ellipse:
+                    found, cy, angle = find_yellow_ellipse(cleaned_mask)
+                    yellow_lost_counter = 0
+                    search_start_time = None
                     
-                    # Debug output when command changes
-                    if abs(error) > ERROR_THRESHOLD:
-                        print(f"[YellowFollow] Error: {error:.1f}px → {steering_cmd}")
-                    else:
-                        print(f"[YellowFollow] Centered → {steering_cmd}")
+                    # Get image dimensions
+                    image_height, image_width = hsv_frame.shape[:2]
+
+                    y_error = compute_error(cy,image_height)
+                    steering_cmd = yellow_line_steering_ellipse(y_error, angle)
+                    if steering_cmd != last_steering_cmd:
+                        pi_2_ard(steering_cmd)
+                        last_steering_cmd = steering_cmd
+                        
+                        # Debug output when command changes
+                        if abs(y_error) > ERROR_THRESHOLD or abs(angle) > ANGLE_THRESHOLD:
+                            print(f"[YellowFollowEllipse] Error: {y_error:.1f}px, Angle: {angle:.1f} → {steering_cmd}")
+                        else:
+                            print(f"[YellowFollowEllipse] Centered → {steering_cmd}")
+                else:
+                    # Reset lost counter and search timer - yellow is visible
+                    yellow_lost_counter = 0
+                    search_start_time = None
+                    
+                    # Get image dimensions
+                    image_height, image_width = hsv_frame.shape[:2]
+                    
+                    # Compute error (camera is upside down on left side)
+                    error = compute_error(cy, image_height)
+                    
+                    # Generate steering command
+                    steering_cmd = yellow_line_steering(error)
+                    
+                    # Only send command if it's different from last time
+                    if steering_cmd != last_steering_cmd:
+                        pi_2_ard(steering_cmd)
+                        last_steering_cmd = steering_cmd
+                        
+                        # Debug output when command changes
+                        if abs(error) > ERROR_THRESHOLD:
+                            print(f"[YellowFollow] Error: {error:.1f}px → {steering_cmd}")
+                        else:
+                            print(f"[YellowFollow] Centered → {steering_cmd}")
             
             else:
                 # Yellow not detected - increment lost counter
