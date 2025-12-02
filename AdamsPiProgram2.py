@@ -98,7 +98,7 @@ def Pixicam():
         # (Pixy library will already have printed error message)
         return False
 
-FLAG_WIDTH = 70 # TODO calibrate this value
+FLAG_WIDTH = 60 # TODO calibrate this value
 
 def getArea(index):
     return (blocks[index].m_width * blocks[index].m_height)
@@ -134,7 +134,7 @@ def lookForFlags():
                 colorSig = blocks[i].m_signature
                 h =  blocks[i].m_height
                 w =  blocks[i].m_width
-                print("Block found: color:",colorSig,"h:",h,"w:",w)
+                #print("Block found: color:",colorSig,"h:",h,"w:",w)
                 tempColor = getColor(count)
                 if tempColor == COLOR_MAP["orange"]:
                     if blocks[i].m_width > FLAG_WIDTH:
@@ -167,7 +167,7 @@ def pixySetFlags():
         nothing
 
     """
-    print("Setting pixy flags:")
+    #print("Setting pixy flags:")
 
     global onGravel, onBridge, BASE_SPEED, TURN_SPEED, VEER_SPEED 
     success, first_flag, second_flag, third_flag = lookForFlags()
@@ -993,11 +993,11 @@ def drive():
     MAX_PIXY_ERRORS = 10  # Warn after this many consecutive errors
     
     try:
-        while True:
-            pixySetFlags()
-            time.sleep(0.5)
+        # while True:
+        #     pixySetFlags()
+        #     time.sleep(0.5)
 
-        while False:
+        while True:
             # Check for user stop command
             if user_stop_requested:
                 print("\n[Drive] User STOP command received - shutting down motors")
