@@ -27,6 +27,7 @@ void tcaSelect(uint8_t channel) {
     Wire.beginTransmission(TCAADDR);
     Wire.write(1 << channel);
     Wire.endTransmission();
+    delay(10);
 }
 
 void LineSensorSetup(){
@@ -75,6 +76,13 @@ void ReadFrontIRDistances(int &leftFront, int &rightFront) {
   VL53L0X_RangingMeasurementData_t measureRight;
   lox[1].rangingTest(&measureRight, false);
   rightFront = measureRight.RangeMilliMeter;
+}
+
+void ReadOneIRDistance(int sensorIndex, int &distance) {
+  tcaSelect(sensorIndex);
+  VL53L0X_RangingMeasurementData_t measure;
+  lox[sensorIndex].rangingTest(&measure, false);
+  distance = measure.RangeMilliMeter;
 }
 
 
@@ -757,31 +765,37 @@ void loop() {
         // Timer expired - exit bridge mode and return to normal speed
         bridgeModeActive = false;
         bridgeModeStartTime = 0;
-        current_speed = SPEED_3;
+        current_speed = SPEED_5;
       } else {
         // Still in bridge mode - stay at slow speed
         current_speed = SPEED_1;
       }
     } else {
-      // Not in bridge mode - check IR sensors for bridge detection
+      // Not in bridge mode - check IR sensors sequentially for bridge detection
+      // Stop checking early if any sensor reads < 500mm (optimization)
       int IR_distances[numIRSensors];
-      ReadAllIRDistances(IR_distances);
-      
-      // Check if ANY sensor reads below 500mm (obstacle/wall detected)
-      bool anyObstacle = (IR_distances[0] < 500 ||   // Left
-                         IR_distances[1] < 500 ||   // Front Right
-                         IR_distances[2] < 500 ||   // Front Left
-                         IR_distances[3] < 500 ||   // Right
-                         IR_distances[4] < 500);    // Back
-      
-      if (anyObstacle) {
-        // Obstacles present - use fast speed
-        current_speed = SPEED_3;
-      } else {
-        // All sensors clear (>500mm) - entering bridge mode
-        current_speed = SPEED_1;
-        bridgeModeActive = true;
-        bridgeModeStartTime = millis();
+      ReadOneIRDistance(0, IR_distances[0]); // Left
+      if (IR_distances[0] >= 500) { 
+        ReadOneIRDistance(1, IR_distances[1]); // Front Right
+        if (IR_distances[1] >= 500) {
+          ReadOneIRDistance(2, IR_distances[2]); // Front Left
+          if (IR_distances[2] >= 500) {
+            ReadOneIRDistance(3, IR_distances[3]); // Right
+            if (IR_distances[3] >= 500) {
+              ReadOneIRDistance(4, IR_distances[4]); // Back
+              if (IR_distances[4] >= 500) {
+                // All sensors read >500mm - bridge detected!
+                current_speed = SPEED_1;
+                bridgeModeActive = true;
+                bridgeModeStartTime = millis();
+              }
+            }
+          }
+        }
+      }
+      // If not entering bridge mode, use normal speed
+      if (!bridgeModeActive) {
+        current_speed = SPEED_5;
       }
     }
     
