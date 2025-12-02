@@ -499,8 +499,8 @@ ANGLE_THRESHOLD = 10        # Angular deadband - dont turn if angle is less than
 EXTREME_ERROR_THRESHOLD = 150  # Pixels - switch from veer to full turn if error exceeds this
 EXTREME_ANGLE_THRESHOLD = 35   # Degrees - switch from veer to full turn if angle exceeds this
 BASE_SPEED = 2              # Default speed level (1-5)
-TURN_SPEED = 1              # Speed when turning to follow line
-VEER_SPEED = 2              # speed when veering
+TURN_SPEED = 2              # Speed when turning to follow line
+VEER_SPEED = 3              # speed when veering
 
 def yellow_line_steering(error):
     """
@@ -764,11 +764,11 @@ def reposition():
             
             if angle_error > 0:
                 print(f"[Reposition] Line angled right ({angle:.1f}°) - turning RIGHT to align")
-                pi_2_ard("MR1")
+                pi_2_ard("MR2")
                 time.sleep(turn_duration + 0.3)
             else:
                 print(f"[Reposition] Line angled left ({angle:.1f}°) - turning LEFT to align")
-                pi_2_ard("ML1")
+                pi_2_ard("ML2")
                 time.sleep(turn_duration + 0.3)
             
             pi_2_ard("MF0")  # Stop motors
@@ -803,7 +803,7 @@ def reposition():
     
     if back_distance > BACK_CLEAR_THRESHOLD:
         print(f"[Reposition] Back clear ({back_distance}mm) - reversing")
-        pi_2_ard("MB2")  # Reverse at speed 2
+        pi_2_ard("MB3")  # Reverse at speed 3
         time.sleep(0.4)  # Reverse for 400ms
         pi_2_ard("MF0")  # Stop motors
         time.sleep(0.4)
@@ -824,19 +824,19 @@ def reposition():
     
     # Step 4: Turn towards the direction with more clearance
     MIN_AREA_DIFFERENCE = 100  # mm - Minimum difference to prefer one side
-    MINIMUM_CLEARANCE = 150     # mm - Minimum total area to consider turning
+    MINIMUM_CLEARANCE = 200     # mm - Minimum total area to consider turning
     
     if left_area < MINIMUM_CLEARANCE and right_area < MINIMUM_CLEARANCE:
         print(f"[Reposition] Both sides blocked (L:{left_area}, R:{right_area}) - attempting large turn")
-        pi_2_ard("ML1")  # Turn left
+        pi_2_ard("ML2")  # Turn left
         time.sleep(0.5)  # Turn for 500ms 
     elif left_area > right_area:
         print(f"[Reposition] Turning LEFT (left area larger by {left_area - right_area}mm)")
-        pi_2_ard("ML1")  # Turn left at speed 2
+        pi_2_ard("ML2")  # Turn left at speed 2
         time.sleep(0.5)  # Turn for 500ms
     else:
         print(f"[Reposition] Turning RIGHT (right area larger by {right_area - left_area}mm)")
-        pi_2_ard("MR1")  # Turn right at speed 1
+        pi_2_ard("MR2")  # Turn right at speed 2
         time.sleep(0.5)  # Turn for 500ms
     
     pi_2_ard("MF0")  # Stop motors
