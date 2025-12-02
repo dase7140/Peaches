@@ -1270,8 +1270,8 @@ def drive2():
     
     try:
         # Start Arduino autonomous line following
-        print("[Drive] Starting Arduino autonomous mode (SD5)")
-        pi_2_ard("SD5")
+        print("[Drive] Starting Arduino autonomous mode (SD4)")
+        pi_2_ard("SD4")
         sd5_sent = True
         autonomous_mode = True
 
