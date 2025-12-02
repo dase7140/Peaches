@@ -527,7 +527,7 @@ def yellow_line_steering(error):
     else:
         return f"MR{TURN_SPEED}"
 
-def yellow_line_steering_ellipse(y_error, angle)
+def yellow_line_steering_ellipse(y_error, angle):
     if abs(y_error) < ERROR_THRESHOLD # if the ellipse is centered, stear to align angle
         angle = angle-180
         if abs(angle) < ANGLE_THRESHOLD:
