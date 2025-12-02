@@ -292,32 +292,37 @@ void setup() {
 
 
 int ACC_INCREMENT = 20; 
-int CUTOFF_BAND = 100;  
+int CUTOFF_BAND = 100; 
+
+int sign(int num){  return (num < 0) ? -1 : 1;}
+
+
 
 void loop() {
   //updates the left motor target speed to approach the set speed
-  if(abs(left_speed_target-left_speed_current) > ACC_INCREMENT){
-    if((left_speed_current - left_speed_target)>0){
-      left_speed_current -= ACC_INCREMENT;
+  if(left_speed_current != left_speed_target){
+    if(abs(left_speed_target-left_speed_current) > ACC_INCREMENT){
+      if((left_speed_current - left_speed_target)>0){
+        left_speed_current -= ACC_INCREMENT;
+      }
+      else {
+        left_speed_current += ACC_INCREMENT;
+      }
+    }
+    else{
+      left_speed_current = left_speed_target;
+    }
+    if(left_speed_target != 0){
+      // If we're requesting a direction change, or current is inside deadband,
+      // jump to the cutoff in the target direction to reliably pass the deadzone.
+      if (abs(left_speed_current) < CUTOFF_BAND) {
+        left_speed_current = sign(left_speed_target) * CUTOFF_BAND;
+      }
     }
     else {
-      left_speed_current += ACC_INCREMENT;
+      left_speed_current = 0;
     }
   }
-  else{
-    left_speed_current = left_speed_target;
-  }
-  if(left_speed_target != 0){
-    // If we're requesting a direction change, or current is inside deadband,
-    // jump to the cutoff in the target direction to reliably pass the deadzone.
-    if (abs(left_speed_current) < CUTOFF_BAND) {
-      left_speed_current = sign(left_speed_target) * CUTOFF_BAND;
-    }
-  }
-  else {
-    left_speed_current = 0;
-  }
-  
 
   if(abs(right_speed_target-right_speed_current) > ACC_INCREMENT){
     if((right_speed_current - right_speed_target)>0){
