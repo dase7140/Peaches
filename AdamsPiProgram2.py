@@ -824,7 +824,7 @@ def reposition():
     
     # Step 4: Turn towards the direction with more clearance
     MIN_AREA_DIFFERENCE = 100  # mm - Minimum difference to prefer one side
-    MINIMUM_CLEARANCE = 200     # mm - Minimum total area to consider turning
+    MINIMUM_CLEARANCE = 300     # mm - Minimum total area to consider turning
     
     if left_area < MINIMUM_CLEARANCE and right_area < MINIMUM_CLEARANCE:
         print(f"[Reposition] Both sides blocked (L:{left_area}, R:{right_area}) - attempting large turn")
