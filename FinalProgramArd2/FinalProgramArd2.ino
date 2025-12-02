@@ -165,7 +165,7 @@ void CommsSetup(){
 
 int left_speed_target = 0;
 int right_speed_target = 0;
-int left_speed_curent = 0;
+int left_speed_current = 0;
 int right_speed_current = 0;
 
 
@@ -296,37 +296,37 @@ int CUTOFF_BAND = 100;
 
 void loop() {
   //updates the left motor target speed to approach the set speed
-  if(abs(left_speed_target-left_speed_curent) > ACC_INCREMENT){
-    if((left_speed_curent - left_speed_target)>0){
-      left_speed_curent += ACC_INCREMENT;
+  if(abs(left_speed_target-left_speed_current) > ACC_INCREMENT){
+    if((left_speed_current - left_speed_target)>0){
+      left_speed_current += ACC_INCREMENT;
     }
     else {
-      left_speed_curent -= ACC_INCREMENT;
+      left_speed_current -= ACC_INCREMENT;
     }
   }
   else{
-    left_speed_curent = left_speed_target;
+    left_speed_current = left_speed_target;
   }
-  if(left_speed_target != 0 && abs(left_speed_curent)<CUTOFF_BAND){//skips time where motor speed is too slow to move
-    left_speed_curent = left_speed_curent*-1;
+  if(left_speed_target != 0 && abs(left_speed_current)<CUTOFF_BAND){//skips time where motor speed is too slow to move
+    left_speed_current = left_speed_current*-1;
   }
 
-  if(abs(right_speed_target-right_speed_curent) > ACC_INCREMENT){
-    if((right_speed_curent - right_speed_target)>0){
-      right_speed_curent += ACC_INCREMENT;
+  if(abs(right_speed_target-right_speed_current) > ACC_INCREMENT){
+    if((right_speed_current - right_speed_target)>0){
+      right_speed_current += ACC_INCREMENT;
     }
     else {
-      right_speed_curent -= ACC_INCREMENT;
+      right_speed_current -= ACC_INCREMENT;
     }
   }
   else{
-    right_speed_curent = right_speed_target;
+    right_speed_current = right_speed_target;
   }
-  if(right_speed_target != 0 && abs(right_speed_curent)<CUTOFF_BAND){//skips time where motor speed is too slow to move
-    right_speed_curent = right_speed_curent*-1;
+  if(right_speed_target != 0 && abs(right_speed_current)<CUTOFF_BAND){//skips time where motor speed is too slow to move
+    right_speed_current = right_speed_current*-1;
   }  
 
-  left_motor.drive(left_speed_curent);
+  left_motor.drive(left_speed_current);
   right_motor.drive(right_speed_current);  
 
   // Process serial commands FIRST before executing states
