@@ -757,7 +757,7 @@ void loop() {
         // Timer expired - exit bridge mode and return to normal speed
         bridgeModeActive = false;
         bridgeModeStartTime = 0;
-        current_speed = SPEED_4;
+        current_speed = SPEED_3;
       } else {
         // Still in bridge mode - stay at slow speed
         current_speed = SPEED_1;
@@ -776,7 +776,7 @@ void loop() {
       
       if (anyObstacle) {
         // Obstacles present - use fast speed
-        current_speed = SPEED_4;
+        current_speed = SPEED_3;
       } else {
         // All sensors clear (>500mm) - entering bridge mode
         current_speed = SPEED_1;

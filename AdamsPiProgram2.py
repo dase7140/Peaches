@@ -1270,8 +1270,8 @@ def drive2():
     
     try:
         # Start Arduino autonomous line following
-        print("[Drive] Starting Arduino autonomous mode (SD4)")
-        pi_2_ard("SD4")
+        print("[Drive] Starting Arduino autonomous mode (SD3)")
+        pi_2_ard("SD3")
         sd5_sent = True
         autonomous_mode = True
 
@@ -1353,7 +1353,7 @@ def drive2():
                 # Switch back to autonomous mode if we were in manual
                 if not autonomous_mode:
                     print("[Drive] Target lost - returning to AUTONOMOUS MODE")
-                    pi_2_ard("SD5")
+                    pi_2_ard("SD3")
                     sd5_sent = True
                     autonomous_mode = True
                     last_manual_cmd = None
