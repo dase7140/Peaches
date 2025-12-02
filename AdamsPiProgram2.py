@@ -16,10 +16,6 @@ from pixy import *
 ########################
 #1 = red, 2 = green 3 = blue 4= yellow 5 = purple (GRAVEL)  6 = pink (RAMP)
 
-# Note: Pixy library may print "error: no response" to stdout if USB communication fails.
-# This is a library-level message and cannot be suppressed from Python.
-# The Pixicam() function handles errors gracefully by returning False.
-
 pixy.init()
 pixy.change_prog("color_connected_components")
 
@@ -74,9 +70,6 @@ def Pixicam():
     
     Returns:
         bool - True if target detected, False otherwise
-        
-    Note: Pixy library may print "error: no response" to stdout if
-    camera communication fails. This is a library message, not from our code.
     """
     try:
         count = pixy.ccc_get_blocks(100, blocks)
@@ -95,7 +88,6 @@ def Pixicam():
             return False
     except Exception as e:
         # Pixy communication error - return False to avoid crashing
-        # (Pixy library will already have printed error message)
         return False
 
 FLAG_WIDTH = 60 # TODO calibrate this value
