@@ -413,7 +413,7 @@ def find_yellow_ellipse(mask):
     largest_contour = max(contours, key=cv2.contourArea)
     
     # Filter out very small contours (likely noise)
-    MIN_CONTOUR_AREA = 500  # Adjust this threshold as needed
+    MIN_CONTOUR_AREA = 150  # Adjust this threshold as needed
     if cv2.contourArea(largest_contour) < MIN_CONTOUR_AREA:
         return False, 0, 0
     
@@ -447,7 +447,7 @@ def find_yellow_centroid(mask):
     largest_contour = max(contours, key=cv2.contourArea)
     
     # Filter out very small contours (likely noise)
-    MIN_CONTOUR_AREA = 500  # Adjust this threshold as needed
+    MIN_CONTOUR_AREA = 150  # Adjust this threshold as needed
     if cv2.contourArea(largest_contour) < MIN_CONTOUR_AREA:
         return False, 0, 0
     
@@ -483,13 +483,11 @@ def compute_error(centroid_y, image_height):
                       Negative = yellow is too close (robot needs to turn right)
                       Zero = yellow is at target position (go straight)
     """
-    # Calculate the target y-coordinate: center of the bottom half of image
-    # Bottom half is from y=image_height/2 to y=image_height
-    # Center of bottom half is at y=3*image_height/4
+    # Calculate the target y-coordinate: center of the image
     target_y = image_height / 2
     
-    # Compute error: positive means yellow is above target in upside-down view
-    # Since camera is upside down, "above" in image = "far" in real world
+    # Compute error: positive means yellow is below target (higher Y) = too far in real world
+    # Since camera is upside down: high Y value in image = far from robot in real world
     error = centroid_y - target_y
     
     return error
@@ -499,7 +497,7 @@ def compute_error(centroid_y, image_height):
 ERROR_THRESHOLD = 50        # Deadband in pixels - go straight if error < this
 ANGLE_THRESHOLD = 10        # Anglular deadband - dont turn if angle is less than threshold
 BASE_SPEED = 2              # Default speed level (1-5)
-TURN_SPEED = 2              # Speed when turning to follow line
+TURN_SPEED = 1              # Speed when turning to follow line
 
 
 def yellow_line_steering(error):
