@@ -298,10 +298,10 @@ void loop() {
   //updates the left motor target speed to approach the set speed
   if(abs(left_speed_target-left_speed_current) > ACC_INCREMENT){
     if((left_speed_current - left_speed_target)>0){
-      left_speed_current += ACC_INCREMENT;
+      left_speed_current -= ACC_INCREMENT;
     }
     else {
-      left_speed_current -= ACC_INCREMENT;
+      left_speed_current += ACC_INCREMENT;
     }
   }
   else{
@@ -318,10 +318,10 @@ void loop() {
 
   if(abs(right_speed_target-right_speed_current) > ACC_INCREMENT){
     if((right_speed_current - right_speed_target)>0){
-      right_speed_current += ACC_INCREMENT;
+      right_speed_current -= ACC_INCREMENT;
     }
     else {
-      right_speed_current -= ACC_INCREMENT;
+      right_speed_current += ACC_INCREMENT;
     }
   }
   else{
