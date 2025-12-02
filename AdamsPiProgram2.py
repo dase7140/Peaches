@@ -386,7 +386,7 @@ def clean_mask(mask):
     return cleaned_mask
 
 
-drive_with_ellipse = True
+drive_with_ellipse = False
 
 
 def find_yellow_ellipse(mask):
