@@ -498,7 +498,7 @@ ERROR_THRESHOLD = 70        # Deadband in pixels - go straight if error < this
 ANGLE_THRESHOLD = 10        # Anglular deadband - dont turn if angle is less than threshold
 BASE_SPEED = 2              # Default speed level (1-5)
 TURN_SPEED = 1              # Speed when turning to follow line
-
+VEER_SPEED = 2              # speed when veering
 
 def yellow_line_steering(error):
     """
@@ -533,17 +533,17 @@ def yellow_line_steering_ellipse(y_error, angle):
         if abs(angle) < ANGLE_THRESHOLD:
             return f"MF{BASE_SPEED}"
         elif angle < 0:
-            return  f"VL{TURN_SPEED}"
+            return  f"VL{VEER_SPEED}"
         else:
-            return f"VR{TURN_SPEED}"
+            return f"VR{VEER_SPEED}"
     else:
         # Positive error - yellow is too far, turn LEFT to get closer
         if y_error > 0:
-            return f"VL{TURN_SPEED}"
+            return f"VL{VEER_SPEED}"
 
         # Negative error - yellow is too close, turn RIGHT to move away
         else:
-            return f"VR{TURN_SPEED}"
+            return f"VR{VEER_SPEED}"
 
 
 
