@@ -127,7 +127,7 @@ def lookForFlags():
                 h =  blocks[i].m_height
                 w =  blocks[i].m_width
                 #print("Block found: color:",colorSig,"h:",h,"w:",w)
-                tempColor = getColor(count)
+                tempColor = getColor(i)
                 if tempColor == COLOR_MAP["orange"]:
                     if blocks[i].m_width > FLAG_WIDTH:
                         if blocks[i].m_height / blocks[i].m_width > 1.5:
