@@ -988,6 +988,10 @@ def drive():
     
     try:
         while True:
+            pixySetFlags()
+            time.sleep(0.5)
+            
+        while False:
             # Check for user stop command
             if user_stop_requested:
                 print("\n[Drive] User STOP command received - shutting down motors")
