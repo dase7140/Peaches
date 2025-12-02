@@ -163,7 +163,10 @@ void CommsSetup(){
 // ##### Combination Functions ######
 // ##################################
 
-
+int left_speed_target = 0;
+int right_speed_target = 0;
+int left_speed_curent = 0;
+int right_speed_current = 0;
 
 
 void BrushMotorOn(){
@@ -187,23 +190,31 @@ void BrushMotorOff(){
 }
 
 void turnLeft(int spd){
-  left_motor.drive(-spd);
-  right_motor.drive(spd);
+  left_speed_target = -spd;
+  right_speed_target = spd;
+  // left_motor.drive(-spd);
+  // right_motor.drive(spd);
 }
 
 void turnRight(int spd){
-  left_motor.drive(spd);
-  right_motor.drive(-spd);
+  left_speed_target = spd;
+  right_speed_target = -spd;
+  // left_motor.drive(spd);
+  // right_motor.drive(-spd);
 }
 
 void veerLeft(int leftSpd, int rightSpd){
-  left_motor.drive(leftSpd);
-  right_motor.drive(rightSpd);
+  left_speed_target = leftSpd;
+  right_speed_target = rightSpd;
+  // left_motor.drive(leftSpd);
+  // right_motor.drive(rightSpd);
 }
 
 void veerRight(int leftSpd, int rightSpd){
-    left_motor.drive(leftSpd);
-    right_motor.drive(rightSpd);
+  left_speed_target = leftSpd;
+  right_speed_target = rightSpd;
+    // left_motor.drive(leftSpd);
+    // right_motor.drive(rightSpd);
 }
 
 // Arduino Safety Stop System
@@ -280,8 +291,44 @@ void setup() {
 }
 
 
+int ACC_INCREMENT = 10; 
+int CUTOFF_BAND = 100;  
 
 void loop() {
+  //updates the left motor target speed to approach the set speed
+  if(abs(left_speed_target-left_speed_curent) > ACC_INCREMENT){
+    if((left_speed_curent - left_speed_target)>0){
+      left_speed_curent += ACC_INCREMENT;
+    }
+    else {
+      left_speed_curent -= ACC_INCREMENT;
+    }
+  }
+  else{
+    left_speed_curent = left_speed_target;
+  }
+  if(left_speed_target != 0 && abs(left_speed_curent)<CUTOFF_BAND){//skips time where motor speed is too slow to move
+    left_speed_curent = left_speed_curent*-1;
+  }
+
+  if(abs(right_speed_target-right_speed_curent) > ACC_INCREMENT){
+    if((right_speed_curent - right_speed_target)>0){
+      right_speed_curent += ACC_INCREMENT;
+    }
+    else {
+      right_speed_curent -= ACC_INCREMENT;
+    }
+  }
+  else{
+    right_speed_curent = right_speed_target;
+  }
+  if(right_speed_target != 0 && abs(right_speed_curent)<CUTOFF_BAND){//skips time where motor speed is too slow to move
+    right_speed_curent = right_speed_curent*-1;
+  }  
+
+  left_motor.drive(left_speed_curent);
+  right_motor.drive(right_speed_current);  
+
   // Process serial commands FIRST before executing states
   if (Serial.available() > 0){
     String msg = Serial.readStringUntil('\n');
@@ -298,35 +345,45 @@ void loop() {
       safetyStopActive = false;
       inGracePeriod = false;  // Terminate grace period on new command
       current_speed = SPEED_1;
-      forward(left_motor, right_motor, current_speed);
+      left_speed_target = current_speed;
+      right_speed_target = current_speed;
+      //forward(left_motor, right_motor, current_speed);
       Serial.println("ACK:MF1");
     }
     else if (msg == "MF2") {
       safetyStopActive = false;
       inGracePeriod = false;  // Terminate grace period on new command
       current_speed = SPEED_2;
-      forward(left_motor, right_motor, current_speed);
+      left_speed_target = current_speed;
+      right_speed_target = current_speed;
+      //forward(left_motor, right_motor, current_speed);
       Serial.println("ACK:MF2");
     }
     else if (msg == "MF3") {
       safetyStopActive = false;
       inGracePeriod = false;  // Terminate grace period on new command
       current_speed = SPEED_3;
-      forward(left_motor, right_motor, current_speed);
+      left_speed_target = current_speed;
+      right_speed_target = current_speed;
+      //forward(left_motor, right_motor, current_speed);
       Serial.println("ACK:MF3");
     }
     else if (msg == "MF4") {
       safetyStopActive = false;
       inGracePeriod = false;  // Terminate grace period on new command
       current_speed = SPEED_4;
-      forward(left_motor, right_motor, current_speed);
+      left_speed_target = current_speed;
+      right_speed_target = current_speed;
+      //forward(left_motor, right_motor, current_speed);
       Serial.println("ACK:MF4");
     }
     else if (msg == "MF5") {
       safetyStopActive = false;
       inGracePeriod = false;  // Terminate grace period on new command
       current_speed = SPEED_5;
-      forward(left_motor, right_motor, current_speed);
+      left_speed_target = current_speed;
+      right_speed_target = current_speed;
+      //forward(left_motor, right_motor, current_speed);
       Serial.println("ACK:MF5");
     }
 
@@ -464,39 +521,50 @@ void loop() {
     else if (msg == "MB1") {
       safetyStopActive = false;
       current_speed = SPEED_1;
-      back(left_motor, right_motor, current_speed);
+      left_speed_target = -current_speed;
+      right_speed_target = -current_speed;
+      //back(left_motor, right_motor, current_speed);
       Serial.println("ACK:MB1");
     }
     else if (msg == "MB2") {
       safetyStopActive = false;
       current_speed = SPEED_2;
-      back(left_motor, right_motor, current_speed);
+      left_speed_target = -current_speed;
+      right_speed_target = -current_speed;
+      //back(left_motor, right_motor, current_speed);
       Serial.println("ACK:MB2");
     }
     else if (msg == "MB3") {
       safetyStopActive = false;
       current_speed = SPEED_3;
-      back(left_motor, right_motor, current_speed);
+      left_speed_target = -current_speed;
+      right_speed_target = -current_speed;
+      //back(left_motor, right_motor, current_speed);
       Serial.println("ACK:MB3");
     }
     else if (msg == "MB4") {
       safetyStopActive = false;
-
       current_speed = SPEED_4;
-      back(left_motor, right_motor, current_speed);
+      left_speed_target = -current_speed;
+      right_speed_target = -current_speed;
+      //back(left_motor, right_motor, current_speed);
       Serial.println("ACK:MB4");
     }
     else if (msg == "MB5") {
       safetyStopActive = false;
       current_speed = SPEED_5;
-      back(left_motor, right_motor, current_speed);
+      left_speed_target = -current_speed;
+      right_speed_target = -current_speed;
+      //back(left_motor, right_motor, current_speed);
       Serial.println("ACK:MB5");
     }
 
     //Stop moving
     else if (msg == "MF0") {
       safetyStopActive = false;
-      brake(left_motor, right_motor);
+      left_speed_target = 0
+      right_speed_target = 0
+      //brake(left_motor, right_motor);
       Serial.println("ACK:MF0");
     }
 
