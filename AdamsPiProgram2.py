@@ -25,6 +25,18 @@ pixy.change_prog("color_connected_components")
 
 target_signature = 1
 
+dice_sig = 1 # 1 for red, 2 for green
+
+COLOR_MAP = {
+    "red": 1,
+    "green": 2,
+    "blue": 3,
+    "yellow": 4,
+    "purple": 5,   # GRAVEL
+    "orange": 6    # RAMP
+}
+
+
 #class to pull from 
 class Blocks(Structure):
     _fields_ = [
@@ -40,6 +52,9 @@ class Blocks(Structure):
 
 blocks = BlockArray(100)
 frame = 0
+onGravel = False
+onBridge = False
+
 
 def seeColor(sig, count):
     for i in range(count):
@@ -83,6 +98,103 @@ def Pixicam():
         # (Pixy library will already have printed error message)
         return False
 
+FLAG_WIDTH = 70 # TODO calibrate this value
+
+def getArea(index):
+    return (blocks[index].m_width * blocks[index].m_height)
+
+def getColor(index):
+    return blocks[index].m_signature
+
+def lookForFlags():
+    """
+    looks for the signatures associated with the three flags on the course, checks if within distance threshold of them
+    returns which of the three flags are visible at any time
+
+    wrapped in function that determines which flag is present, updates booleans and updates relevant commands (raises tray, etc)
+
+    returns
+        success: bool - returns true if the camera successfully read, otherwise all arguments are false
+        first_flag: bool - whether flag with vertical rectangle orange is visible (before gravel)
+        second_flag: bool - whether the flag with square orange is visible (after gravel)
+        third_flag: bool - whether flag with vertical purple rectangle is visible (after bridge)
+    """
+    try:
+        count = pixy.ccc_get_blocks(100, blocks)
+        #now is for incase we need a search timeout
+        now = int(round(time.time() * 1000))
+        allSigs = [5,6]
+        first_flag = False
+        second_flag = False
+        third_flag = False
+        if count == 0:
+            return True, False, False, False
+        else:
+            for i in range(count):
+                tempColor = getColor(count)
+                if tempColor == COLOR_MAP["orange"]:
+                    if blocks[i].m_width > FLAG_WIDTH:
+                        if blocks[i].m_height / blocks[i].m_width > 1.5:
+                            first_flag = True
+                        else: 
+                            second_flag = True
+                if tempColor == COLOR_MAP["purple"]:
+                    if blocks[i].m_width > FLAG_WIDTH:
+                        if blocks[i].m_height / blocks[i].m_width > 1.5:
+                            third_flag = True
+            return True, first_flag,second_flag,third_flag
+    except Exception as e:
+        # Pixy communication error - return False to avoid crashing
+        # (Pixy library will already have printed error message)
+        return False, False, False, False
+
+
+def pixySetFlags():
+    """
+    When called, checks the current set of pixy blocks to determine if we have seen the colors relevent to the flags
+    on the course
+
+    If so, makes relevent variable adjustments:
+    See first flag: raises collection tray, bool blocks any further commands to lower it, increases speeds in all navigation commands
+    See second flag: removes gravel boolean and sets bridge one. This changes speeds and may initiate a bridge animation
+    See third flag: reset first two flags
+
+    returns 
+        nothing
+
+    """
+    global onGravel, onBridge, BASE_SPEED, TURN_SPEED, VEER_SPEED 
+    success, first_flag, second_flag, third_flag = lookForFlags()
+    if success == False:
+        return
+    else:
+        if first_flag: # first flag, trigger gravel protocol
+            if onGravel == False:
+                print("[PIXY FLAGS] Entering gravel mode")
+                onGravel = True 
+                pi_2_ard("DBM")
+                BASE_SPEED = 4
+                TURN_SPEED = 4
+                VEER_SPEED = 5
+        elif second_flag: # TODO will want to implement more robust bridge crossing mechanism here
+            if onBridge == False:
+                print("[PIXY FLAGS] Entering bridge mode")
+                onGravel = False
+                onBridge = True
+                BASE_SPEED = 2
+                TURN_SPEED = 2
+                VEER_SPEED = 3
+        elif third_flag:
+            if onGravel or onBridge:
+                print("[PIXY FLAGS] Leaving special areas")
+                onBridge = False
+                onGravel = False
+                BASE_SPEED = 2
+                TURN_SPEED = 2
+                VEER_SPEED = 3
+                
+
+        
 
 ############################
 # Serial Communication Setup
@@ -852,7 +964,7 @@ def drive():
     Monitors for stop conditions and handles motor shutdown.
     Manages Pixicam target detection and brush motor control.
     """
-    global user_stop_requested, estop_triggered
+    global user_stop_requested, estop_triggered,onGravel,onBridge
     
     print("[Drive] Starting main control loop")
     print("[Drive] Type 'STOP' at any time to emergency stop")
@@ -1013,9 +1125,10 @@ def drive():
             # Target detected - activate brush motor
             if target_detected:
                 if not brush_motor_active:
-                    print("[Drive] Target detected - activating brush motor")
-                    pi_2_ard("ABM")
-                    brush_motor_active = True
+                    if not onGravel:
+                        print("[Drive] Target detected - activating brush motor")
+                        pi_2_ard("ABM")
+                        brush_motor_active = True
                     # Reset steering command so next yellow line command will be sent
                     last_steering_cmd = None
                 # Cancel any pending shutdown timer only if brush motor is active
