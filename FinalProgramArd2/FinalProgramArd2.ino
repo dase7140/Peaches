@@ -324,26 +324,28 @@ void loop() {
     }
   }
 
-  if(abs(right_speed_target-right_speed_current) > ACC_INCREMENT){
-    if((right_speed_current - right_speed_target)>0){
-      right_speed_current -= ACC_INCREMENT;
+  if(right_speed_current != right_speed_target){
+    if(abs(right_speed_target-right_speed_current) > ACC_INCREMENT){
+      if((right_speed_current - right_speed_target)>0){
+        right_speed_current -= ACC_INCREMENT;
+      }
+      else {
+        right_speed_current += ACC_INCREMENT;
+      }
     }
-    else {
-      right_speed_current += ACC_INCREMENT;
+    else{
+      right_speed_current = right_speed_target;
     }
-  }
-  else{
-    right_speed_current = right_speed_target;
-  }
-  if(right_speed_target != 0){
-    // If we're requesting a direction change, or current is inside deadband,
-    // jump to the cutoff in the target direction to reliably pass the deadzone.
-    if (abs(right_speed_current) < CUTOFF_BAND) {
-      right_speed_current = sign(right_speed_target) * CUTOFF_BAND;
+    if(right_speed_target != 0){
+      // If we're requesting a direction change, or current is inside deadband,
+      // jump to the cutoff in the target direction to reliably pass the deadzone.
+      if (abs(right_speed_current) < CUTOFF_BAND) {
+        right_speed_current = sign(right_speed_target) * CUTOFF_BAND;
+      }
+    }  
+    else{
+      right_speed_current = 0;
     }
-  }  
-  else{
-    right_speed_current = 0;
   }
 
   left_motor.drive(left_speed_current);
@@ -633,4 +635,5 @@ void loop() {
   
   // Continuously check for front obstacles (Arduino safety layer)
   checkFrontObstacles();
+  
 }
