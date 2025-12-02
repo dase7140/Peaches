@@ -529,7 +529,6 @@ def yellow_line_steering(error):
 
 def yellow_line_steering_ellipse(y_error, angle):
     if abs(y_error) < ERROR_THRESHOLD: # if the ellipse is centered, stear to align angle
-        angle = angle-180
         if abs(angle) < ANGLE_THRESHOLD:
             return f"MF{BASE_SPEED}"
         elif angle < 0:
@@ -680,15 +679,68 @@ def reposition():
     Intelligent repositioning function when obstacle detected.
     
     Strategy:
-    1. Read IR sensors to assess surroundings
-    2. If back is clear (>100mm), reverse to create space
-    3. Calculate left area (front_left + left) vs right area (front_right + right)
-    4. Turn towards the direction with more clearance
+    1. Try to find yellow line ellipse and align to it
+       - If angle is off, turn to straighten the ellipse
+       - Target angle is 0° (horizontal line in upside-down view)
+    2. If no ellipse found, fall back to IR sensor-based repositioning
+       - Read IR sensors to assess surroundings
+       - If back is clear (>100mm), reverse to create space
+       - Calculate left area vs right area and turn towards clearance
     
     Returns:
         bool - True if repositioning succeeded, False if failed
     """
     print("[Reposition] Starting repositioning maneuver")
+    
+    # PRIORITY 1: Try to align to yellow line ellipse
+    try:
+        # Capture and process frame
+        hsv_frame = capture_image()
+        mask = yellow_mask(hsv_frame)
+        cleaned_mask = clean_mask(mask)
+        
+        # Find yellow ellipse
+        found, cy, angle = find_yellow_ellipse(cleaned_mask)
+        
+        if found:
+            print(f"[Reposition] Yellow ellipse found: angle={angle:.1f}°")
+            
+            # Target angle is 0° (horizontal line when camera upside down on left side)
+            # Camera orientation: upside down on LEFT
+            # When line is straight ahead, it appears horizontal in upside-down view
+            TARGET_ANGLE = 0.0
+            ANGLE_THRESHOLD = 15.0  # degrees - deadband for "close enough"
+            
+            angle_error = angle - TARGET_ANGLE
+            
+            if abs(angle_error) < ANGLE_THRESHOLD:
+                print(f"[Reposition] Ellipse already aligned (error: {angle_error:.1f}°)")
+                return True
+            
+            # Determine turn direction and duration based on angle error
+            # Positive angle error = line angled right → turn RIGHT to straighten
+            # Negative angle error = line angled left → turn LEFT to straighten
+            turn_duration = min(abs(angle_error) / 180.0, 0.5)  # Scale turn time, max 0.5s
+            
+            if angle_error > 0:
+                print(f"[Reposition] Line angled right ({angle:.1f}°) - turning RIGHT to align")
+                pi_2_ard("MR1")
+                time.sleep(turn_duration)
+            else:
+                print(f"[Reposition] Line angled left ({angle:.1f}°) - turning LEFT to align")
+                pi_2_ard("ML1")
+                time.sleep(turn_duration)
+            
+            pi_2_ard("MF0")  # Stop motors
+            print("[Reposition] Ellipse alignment complete")
+            return True
+            
+    except Exception as e:
+        print(f"[Reposition] Error during ellipse alignment: {e}")
+        # Fall through to IR sensor method
+    
+    # FALLBACK: IR sensor-based repositioning
+    print("[Reposition] No ellipse found - using IR sensor method")
     
     # Step 1: Read current sensor values
     ir_data = read_ir_sensors()
