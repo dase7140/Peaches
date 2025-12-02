@@ -309,12 +309,16 @@ void loop() {
   }
   if(left_speed_target != 0 && abs(left_speed_current)<CUTOFF_BAND){//skips time where motor speed is too slow to move
     if(left_speed_target>0){
-      left_speed_current =-CUTOFF_BAND;
+      left_speed_current = -CUTOFF_BAND;
     }
     else{
       left_speed_current = CUTOFF_BAND;
     }
   }
+  else if(left_speed_target == 0){
+    left_speed_current = 0;
+  }
+  
 
   if(abs(right_speed_target-right_speed_current) > ACC_INCREMENT){
     if((right_speed_current - right_speed_target)>0){
@@ -335,6 +339,9 @@ void loop() {
       right_speed_current = CUTOFF_BAND;
     }
   }  
+  else if(right_speed_target == 0){
+    right_speed_current = 0;
+  }
 
   left_motor.drive(left_speed_current);
   right_motor.drive(right_speed_current);  
