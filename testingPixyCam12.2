@@ -165,26 +165,20 @@ def pixySetFlags():
         print("[PIXY FLAGS] Entering gravel mode")
         onGravel = True
         onBridge = False
-        BASE_SPEED = 4
-        TURN_SPEED = 4
-        VEER_SPEED = 5
+ 
 
     elif second_flag and not onBridge:
         print("[PIXY FLAGS] Entering bridge mode")
         onBridge = True
         onGravel = False
-        BASE_SPEED = 2
-        TURN_SPEED = 2
-        VEER_SPEED = 3
+
 
     elif third_flag: #SLOW motors to pass ramp
         if onGravel or onBridge:
             print("[PIXY FLAGS] Leaving special areas")
         onBridge = False
         onGravel = False
-        BASE_SPEED = 2
-        TURN_SPEED = 2
-        VEER_SPEED = 3
+
 
 def mainLoop(): #logic for dice vs flag prioiritization
    
@@ -193,7 +187,7 @@ def mainLoop(): #logic for dice vs flag prioiritization
         diceSeen = Pixicam()
         if diceSeen:
             print("Dice seen")
+            time.sleep(.02)
 
 if __name__ == '__main__':
     mainLoop()
-    time.sleep(0.02)
