@@ -291,7 +291,7 @@ void setup() {
 }
 
 
-int ACC_INCREMENT = 10; 
+int ACC_INCREMENT = 20; 
 int CUTOFF_BAND = 100;  
 
 void loop() {
@@ -309,10 +309,10 @@ void loop() {
   }
   if(left_speed_target != 0 && abs(left_speed_current)<CUTOFF_BAND){//skips time where motor speed is too slow to move
     if(left_speed_target>0){
-      left_speed_current = CUTOFF_BAND;
+      left_speed_current =-CUTOFF_BAND;
     }
     else{
-      left_speed_current = -CUTOFF_BAND;
+      left_speed_current = CUTOFF_BAND;
     }
   }
 
@@ -329,10 +329,10 @@ void loop() {
   }
   if(right_speed_target != 0 && abs(right_speed_current)<CUTOFF_BAND){//skips time where motor speed is too slow to move
     if(right_speed_target>0){
-      right_speed_current = CUTOFF_BAND;
+      right_speed_current = -CUTOFF_BAND;
     }
     else{
-      right_speed_current = -CUTOFF_BAND;
+      right_speed_current = CUTOFF_BAND;
     }
   }  
 
