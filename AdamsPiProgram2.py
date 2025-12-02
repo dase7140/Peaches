@@ -494,7 +494,7 @@ def compute_error(centroid_y, image_height):
 
 
 # Yellow Line Following Control Parameters
-ERROR_THRESHOLD = 50        # Deadband in pixels - go straight if error < this
+ERROR_THRESHOLD = 70        # Deadband in pixels - go straight if error < this
 ANGLE_THRESHOLD = 10        # Anglular deadband - dont turn if angle is less than threshold
 BASE_SPEED = 2              # Default speed level (1-5)
 TURN_SPEED = 1              # Speed when turning to follow line
@@ -532,7 +532,7 @@ def yellow_line_steering_ellipse(y_error, angle):
         angle = angle-180
         if abs(angle) < ANGLE_THRESHOLD:
             return f"MF{BASE_SPEED}"
-        elif angle > 0:
+        elif angle < 0:
             return  f"ML{TURN_SPEED}"
         else:
             return f"MR{TURN_SPEED}"
