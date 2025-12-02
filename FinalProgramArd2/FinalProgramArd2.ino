@@ -311,7 +311,7 @@ void loop() {
     // If we're requesting a direction change, or current is inside deadband,
     // jump to the cutoff in the target direction to reliably pass the deadzone.
     if (abs(left_speed_current) < CUTOFF_BAND) {
-      left_speed_current = (left_speed_target > 0) ? CUTOFF_BAND : -CUTOFF_BAND;
+      left_speed_current = sign(left_speed_target) * CUTOFF_BAND;
     }
   }
   else {
@@ -334,7 +334,7 @@ void loop() {
     // If we're requesting a direction change, or current is inside deadband,
     // jump to the cutoff in the target direction to reliably pass the deadzone.
     if (abs(right_speed_current) < CUTOFF_BAND) {
-      right_speed_current = (right_speed_target > 0) ? CUTOFF_BAND : -CUTOFF_BAND;
+      right_speed_current = sign(right_speed_target) * CUTOFF_BAND;
     }
   }  
   else{
