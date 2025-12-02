@@ -291,7 +291,7 @@ void setup() {
 }
 
 
-int ACC_INCREMENT = 20; 
+int ACC_INCREMENT = 40; 
 int CUTOFF_BAND = 100; 
 
 int sign(int num){  return (num < 0) ? -1 : 1;}
