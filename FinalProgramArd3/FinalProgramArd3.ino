@@ -228,6 +228,7 @@ void veerRight(int leftSpd, int rightSpd){
     // right_motor.drive(rightSpd);
 }
 
+int loopCounter = 0;
 
 void drive_IR(int speed) {
   int yellowState = digitalRead(yellowPin);
@@ -403,7 +404,7 @@ int CUTOFF_BAND = 100;
 
 int sign(int num){  return (num < 0) ? -1 : 1;}
 String msg = "MF0";
-
+bool acked = false;
 
 void loop() {
   // //updates the left motor target speed to approach the set speed
@@ -459,7 +460,6 @@ void loop() {
   right_motor.drive(right_speed_target);  
 
   // Process serial commands FIRST before executing states
-  bool acked = false;
   if (Serial.available() > 0){
     String msgRcd = Serial.readStringUntil('\n');
     msgRcd.trim(); // Remove any leading/trailing whitespace
