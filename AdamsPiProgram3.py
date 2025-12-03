@@ -1004,7 +1004,7 @@ def drive2():
                 # No action needed from Pi
             
             # ===== PIXICAM TARGET DETECTION AND MANUAL STEERING =====
-            pixySetFlags()  # Check and set flags first
+            ##pixySetFlags()  # Check and set flags first
             
             # Handle bridge/gravel mode - deactivate brush motor
             if onBridge or onGravel:
@@ -1030,43 +1030,43 @@ def drive2():
             # (This section runs when not on bridge/gravel and bridge timer has expired)
             
             # ===== DICE DETECTION WITH PIXICAM =====
-            try:
-                target_detected = Pixicam()
-                pixy_error_count = 0  # Reset error count on successful read
-            except Exception as e:
-                # Pixy error - assume no target detected
-                target_detected = False
-                pixy_error_count += 1
+            # try:
+            #     target_detected = Pixicam()
+            #     pixy_error_count = 0  # Reset error count on successful read
+            # except Exception as e:
+            #     # Pixy error - assume no target detected
+            #     target_detected = False
+            #     pixy_error_count += 1
                 
-                # Warn if errors persist
-                if pixy_error_count == MAX_PIXY_ERRORS:
-                    print(f"[Pixy] WARNING: {MAX_PIXY_ERRORS} consecutive errors - camera may be disconnected")
-                    print("[Pixy] Continuing without target detection...")
+            #     # Warn if errors persist
+            #     if pixy_error_count == MAX_PIXY_ERRORS:
+            #         print(f"[Pixy] WARNING: {MAX_PIXY_ERRORS} consecutive errors - camera may be disconnected")
+            #         print("[Pixy] Continuing without target detection...")
             
-            # Target detected - activate brush motor with 10-second timer
-            if target_detected:
-                if not brush_motor_active and bridge_brush_disabled_time is None:
-                    # Only activate if NOT in bridge disable period
-                    print("[Drive] Dice detected - activating brush motor for 10 seconds")
-                    pi_2_ard("ABM")
-                    brush_motor_active = True
-                    brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
-                elif brush_motor_active and brush_motor_off_time is not None:
-                    # Dice still detected - reset the timer to keep motor running
-                    brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
-                elif bridge_brush_disabled_time is not None:
-                    # Dice detected but still in bridge disable period
-                    elapsed = BRIDGE_BRUSH_DISABLE_DURATION - (time.time() - bridge_brush_disabled_time)
-                    if elapsed > 0:
-                        print(f"[Drive] Dice detected but bridge disable active ({elapsed:.1f}s remaining)")
+            # # Target detected - activate brush motor with 10-second timer
+            # if target_detected:
+            #     if not brush_motor_active and bridge_brush_disabled_time is None:
+            #         # Only activate if NOT in bridge disable period
+            #         print("[Drive] Dice detected - activating brush motor for 10 seconds")
+            #         pi_2_ard("ABM")
+            #         brush_motor_active = True
+            #         brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
+            #     elif brush_motor_active and brush_motor_off_time is not None:
+            #         # Dice still detected - reset the timer to keep motor running
+            #         brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
+            #     elif bridge_brush_disabled_time is not None:
+            #         # Dice detected but still in bridge disable period
+            #         elapsed = BRIDGE_BRUSH_DISABLE_DURATION - (time.time() - bridge_brush_disabled_time)
+            #         if elapsed > 0:
+            #             print(f"[Drive] Dice detected but bridge disable active ({elapsed:.1f}s remaining)")
             
-            # Check if it's time to turn off brush motor (after 10 seconds)
-            if brush_motor_active and brush_motor_off_time is not None:
-                if time.time() >= brush_motor_off_time:
-                    print("[Drive] 10-second timer expired - turning off brush motor")
-                    pi_2_ard("DBM")
-                    brush_motor_active = False
-                    brush_motor_off_time = None
+            # # Check if it's time to turn off brush motor (after 10 seconds)
+            # if brush_motor_active and brush_motor_off_time is not None:
+            #     if time.time() >= brush_motor_off_time:
+            #         print("[Drive] 10-second timer expired - turning off brush motor")
+            #         pi_2_ard("DBM")
+            #         brush_motor_active = False
+            #         brush_motor_off_time = None
             
             time.sleep(0.05)  # Small delay to prevent busy loop
             
