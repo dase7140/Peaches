@@ -233,6 +233,7 @@ void veerRight(int leftSpd, int rightSpd){
 }
 
 int loopCounter = 0;
+
 void drive_IR(int speed) {
   int yellowState = digitalRead(yellowPin);
   int whiteState = digitalRead(whitePin);
@@ -259,7 +260,7 @@ void drive_IR(int speed) {
   }
   loopCounter = 0;
   }
-}
+
     loopCounter++;
 
 //   if (distances[1] < 100 && distances[2] > 100){
