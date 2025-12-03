@@ -235,7 +235,7 @@ int loopCounter = 0;
 void drive_IR(int speed) {
   int yellowState = digitalRead(yellowPin);
   int whiteState = digitalRead(whitePin);
-  int restTime = 100;  // Change this to increase turning 
+  int restTime = 50;  // Change this to increase turning 
   int currentSpeed = speed;
   int distances[numIRSensors];  // Declare distances array
   
@@ -321,12 +321,14 @@ void drive_IR(int speed) {
       delay(restTime);
       left_speed_target = 0;
       right_speed_target = 0;
+      delay(restTime);
     }
     else {
       turnRight(speed);
       delay(restTime);
       left_speed_target = 0;
       right_speed_target = 0;
+      delay(restTime);
     }
   }
 }
