@@ -283,8 +283,8 @@ void drive_IR(int speed) {
   // Both sensors read 1 (both on line) - go forward
   if (yellowState == 1 && whiteState == 1) {
     //forward(left_motor, right_motor, currentSpeed);
-    //left_speed_target = current_speed;
-    //right_speed_target = current_speed;
+    left_speed_target = current_speed;
+    right_speed_target = current_speed;
   }
   // White sensor triggered (0) - turn left
   else if (whiteState == 0 && yellowState == 1  ) {
@@ -540,9 +540,9 @@ void loop() {
       safetyStopActive = false;
       inGracePeriod = false;  // Terminate grace period on new command
       current_speed = SPEED_1;
-      left_speed_target = current_speed;
-      right_speed_target = current_speed;
-      drive_IR();
+      // left_speed_target = current_speed;
+      // right_speed_target = current_speed;
+      drive_IR(current_speed);
       //forward(left_motor, right_motor, current_speed);
       if(!acked){
         Serial.println(String("ACK:") + msg);
@@ -553,9 +553,9 @@ void loop() {
       safetyStopActive = false;
       inGracePeriod = false;  // Terminate grace period on new command
       current_speed = SPEED_2;
-      left_speed_target = current_speed;
-      right_speed_target = current_speed;
-      drive_IR();
+      // left_speed_target = current_speed;
+      // right_speed_target = current_speed;
+      drive_IR(current_speed);
       //forward(left_motor, right_motor, current_speed);
       if(!acked){
         Serial.println(String("ACK:") + msg);
@@ -566,9 +566,9 @@ void loop() {
       safetyStopActive = false;
       inGracePeriod = false;  // Terminate grace period on new command
       current_speed = SPEED_3;
-      left_speed_target = current_speed;
-      right_speed_target = current_speed;
-      drive_IR();
+      // left_speed_target = current_speed;
+      // right_speed_target = current_speed;
+      drive_IR(current_speed);
       //forward(left_motor, right_motor, current_speed);
       if(!acked){
         Serial.println(String("ACK:") + msg);
@@ -579,9 +579,9 @@ void loop() {
       safetyStopActive = false;
       inGracePeriod = false;  // Terminate grace period on new command
       current_speed = SPEED_4;
-      left_speed_target = current_speed;
-      right_speed_target = current_speed;
-      drive_IR();
+      // left_speed_target = current_speed;
+      // right_speed_target = current_speed;
+      drive_IR(current_speed);
       //forward(left_motor, right_motor, current_speed);
       if(!acked){
         Serial.println(String("ACK:") + msg);
@@ -592,9 +592,9 @@ void loop() {
       safetyStopActive = false;
       inGracePeriod = false;  // Terminate grace period on new command
       current_speed = SPEED_5;
-      left_speed_target = current_speed;
-      right_speed_target = current_speed;
-      drive_IR();
+      // left_speed_target = current_speed;
+      // right_speed_target = current_speed;
+      drive_IR(current_speed);
       //forward(left_motor, right_motor, current_speed);
       if(!acked){
         Serial.println(String("ACK:") + msg);
