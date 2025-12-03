@@ -59,7 +59,7 @@ blocks = BlockArray(100)
 frame = 0
 onGravel = False
 onBridge = False
-
+bridgeTimer = 0
 
 def seeColor(sig, count):
     for i in range(count):
@@ -196,11 +196,13 @@ def pixySetFlags():
         print("[PIXY FLAGS] Entering gravel mode (debounced)")
         onGravel = True
         onBridge = False
+        bridgeTimer = 0
 
     # ---- Second Flag: Enter Bridge Mode ----
     elif second_flag_count >= DEBOUNCE_FRAMES and not onBridge:
         print("[PIXY FLAGS] Entering bridge mode (debounced)")
         onBridge = True
+        bridgeTimer = True
         onGravel = False
 
     # ---- Third Flag: Exit special modes ----
@@ -209,6 +211,7 @@ def pixySetFlags():
             print("[PIXY FLAGS] Leaving special areas (debounced)")
         onGravel = False
         onBridge = False
+        bridgeTimer = 0
 
 
         
@@ -271,10 +274,12 @@ def serial_reader():
                     elif line == "BMA":
                         print("[Arduino] Bridge Mode Activated")
                         onBridge = True
+                        bridgeTimer = time.time
 
                     elif line == "BMD":
                         print("[Arduino] Bridge Mode Deactivated")
                         onBridge = False
+                        bridgeTimer = 0
                     
                     # Print other messages
                     else:
@@ -966,7 +971,20 @@ def drive2():
     try:
         # Start Arduino autonomous line following
         print("[Drive] Starting Arduino autonomous mode (SD5)")
-        pi_2_ard("SD5")
+        SDmode = "SD5"
+        if onBridge:
+            currTime = time.time()
+            timer = currTime - bridgeTimer
+            if timer < 5:
+                SDmode = "SD3"
+            elif 5 <= timer and timer <= 15:
+                SDmode = "SD1"
+            else:
+                SDmode = "SD5"
+        elif onGravel:
+            SDmode = "SD5"
+
+        pi_2_ard(SDmode)
         sd5_sent = True
         autonomous_mode = True
 
