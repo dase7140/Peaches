@@ -326,7 +326,7 @@ int ACC_INCREMENT = 40;
 int CUTOFF_BAND = 100; 
 
 int sign(int num){  return (num < 0) ? -1 : 1;}
-
+String msg = "";
 
 
 void loop() {
@@ -384,13 +384,14 @@ void loop() {
 
   // Process serial commands FIRST before executing states
   if (Serial.available() > 0){
-    String msg = Serial.readStringUntil('\n');
-    msg.trim(); // Remove any leading/trailing whitespace
+    String msgRcd = Serial.readStringUntil('\n');
+    msgRcd.trim(); // Remove any leading/trailing whitespace
 
     // Ignore empty messages
-    if (msg.length() == 0){
+    if (msgRcd.length() == 0){
       return; 
     }
+    
     
     // Process commands and change state
     // Move Forward - Speed Levels 1-5 
