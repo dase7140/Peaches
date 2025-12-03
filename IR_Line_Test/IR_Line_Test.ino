@@ -834,29 +834,29 @@ void loop() {
       }
     } else {
 
-    if (loopCounter++ >= 5) {
-        loopCounter = 0;
-        // Not in bridge mode - check IR sensors sequentially for bridge detection
-        // Stop checking early if any sensor reads < 500mm (optimization)
-        int IR_distances[numIRSensors];
-        ReadOneIRDistance(0, IR_distances[0]); // Left
-        if (IR_distances[0] >= 500) { 
-            ReadOneIRDistance(1, IR_distances[1]); // Front Right
-            if (IR_distances[1] >= 500) {
-            ReadOneIRDistance(2, IR_distances[2]); // Front Left
-            if (IR_distances[2] >= 500) {
-                ReadOneIRDistance(3, IR_distances[3]); // Right
-                if (IR_distances[3] >= 500) {
-                ReadOneIRDistance(4, IR_distances[4]); // Back
-                if (IR_distances[4] >= 500) {
-                    // All sensors read >500mm - bridge detected!
-                    current_speed = SPEED_1;
-                    bridgeModeActive = true;
-                    bridgeModeStartTime = millis();
-                    Serial.println("BMA");
-                }
-                }
-            }
+    // if (loopCounter++ >= 5) {
+    //     loopCounter = 0;
+    //     // Not in bridge mode - check IR sensors sequentially for bridge detection
+    //     // Stop checking early if any sensor reads < 500mm (optimization)
+    //     int IR_distances[numIRSensors];
+    //     ReadOneIRDistance(0, IR_distances[0]); // Left
+    //     if (IR_distances[0] >= 500) { 
+    //         ReadOneIRDistance(1, IR_distances[1]); // Front Right
+    //         if (IR_distances[1] >= 500) {
+    //         ReadOneIRDistance(2, IR_distances[2]); // Front Left
+    //         if (IR_distances[2] >= 500) {
+    //             ReadOneIRDistance(3, IR_distances[3]); // Right
+    //             if (IR_distances[3] >= 500) {
+    //             ReadOneIRDistance(4, IR_distances[4]); // Back
+    //             if (IR_distances[4] >= 500) {
+    //                 // All sensors read >500mm - bridge detected!
+    //                 current_speed = SPEED_1;
+    //                 bridgeModeActive = true;
+    //                 bridgeModeStartTime = millis();
+    //                 Serial.println("BMA");
+    //             }
+    //             }
+    //         }
             }
         }
     }
