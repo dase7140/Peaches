@@ -326,7 +326,7 @@ int ACC_INCREMENT = 40;
 int CUTOFF_BAND = 100; 
 
 int sign(int num){  return (num < 0) ? -1 : 1;}
-String msg = "";
+String msg = "MF0";
 
 
 void loop() {
@@ -391,8 +391,10 @@ void loop() {
     if (msgRcd.length() == 0){
       return; 
     }
-    
-    
+    msg = msgRcd;
+  }
+  
+
     // Process commands and change state
     // Move Forward - Speed Levels 1-5 
     if (msg == "MF1") {
@@ -721,8 +723,8 @@ void loop() {
   // }
   // Continuously check for front obstacles (Arduino safety layer)
   //checkFrontObstacles();
-  drive_IR();
-}
+  //drive_IR();
+
 
 // void loop() {
 //   // Drive based on IR line sensors
