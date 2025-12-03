@@ -240,35 +240,78 @@ void drive_IR(int speed) {
   int currentSpeed = speed;
 
   int frontLeft, frontRight;
-  ReadFrontIRDistances(frontLeft, frontRight);
+  int distanaces[numIRSensors];
+  ReadAllIRDistances(distanaces);
+  // Left - 0
+// Front Right - 1
+// Front Left - 2
+// Right - 3  
+// Back - 4
   
-  // Check for critical obstacle
-  if (frontLeft < 300|| frontRight < 300){
+int maxDistance = distanaces[0];
+int maxIndex = 0;
+
+// First check if ANY sensor reads below 500mm (obstacle present)
+bool obstacleDetected = false;
+for (int i = 0; i < numIRSensors-1; i++) {
+  if (distanaces[i] < 500) {
+    obstacleDetected = true;
+    break;  // Found an obstacle, no need to check more
+  }
+}
+
+// Only proceed with turning if an obstacle is detected
+if (obstacleDetected) {
+  // Find which sensor has the largest reading
+  for (int i = 1; i < numIRSensors-1; i++) {
+    if (distanaces[i] > maxDistance) {
+      maxDistance = distanaces[i];
+      maxIndex = i;
+    }
+  }
+
+  // Turn towards the sensor with most open space
+  if (maxIndex == 3) {
+    // Right sensor has most space - turn right
+    brake(left_motor, right_motor);
+    delay(100);
+    turnRight(speed);
+    delay(200);
+  }
+  else if (maxIndex == 0) {
+    // Left sensor has most space - turn left
+    brake(left_motor, right_motor);
+    delay(100);
+    turnLeft(speed);
+    delay(200);
+  }
+}
+
+
+  if (distanaces[1] < 300|| distanaces[2] < 300){
     currentSpeed = 120;
   }
   else {
     currentSpeed = speed;
   }
 
-  if (frontLeft < 100 && frontRight > 100){
-    turnLeft(speed*.75);
+  if (distanaces[1] < 100 && distanaces[2] > 100){
+    turnLeft(speed);
   }
-  else if (frontRight < 100 && frontLeft > 100){
-    turnRight(speed*.75);
+  else if (distanaces[2] < 100 && distanaces[1] > 100){
+    turnRight(speed);
   }
-  else if (frontLeft < 100 && frontRight < 100){
+  else if (distanaces[2] < 100 && distanaces[1] < 100){
     back(left_motor, right_motor, currentSpeed);
     delay(restTime);
     brake(left_motor, right_motor);
-    int distances[numIRSensors];
-    ReadAllIRDistances(distances);
     int leftArea = distances[0] + distances[2];
     int rightArea = distances[1] + distances[3];
     if (leftArea > rightArea){
-      turnLeft(speed*.75);
+      turnLeft(speed);
     }
     else {
-      turnRight(speed*.75);
+      turnRight(speed);
     }
   }
   
@@ -278,11 +321,11 @@ void drive_IR(int speed) {
   }
   // White sensor triggered (0) - turn left
   else if (whiteState == 0 && yellowState == 1  ) {
-    turnLeft(speed*.75);
+    turnLeft(speed);
   }
   // Yellow sensor triggered (0) - turn right
   else if (yellowState == 0 && whiteState == 1) {
-    turnRight(speed*.75);
+    turnRight(speed);
   }
   // Both sensors triggered - Faceplanting - Dont stop
   else if (yellowState == 0 && whiteState == 0) {
