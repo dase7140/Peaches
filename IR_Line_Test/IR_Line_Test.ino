@@ -249,6 +249,16 @@ void drive_IR(int speed) {
   else {
     currentSpeed = speed;
   }
+
+  if (frontLeft < 100 && frontRight > 100){
+    turnLeft(speed);
+  }
+  else if (frontRight < 100 && frontLeft > 100){
+    turnRight(speed);
+  }
+  else if (frontLeft < 100 && frontRight < 100){
+    back(left_motor, right_motor, currentSpeed);
+  }
   
   // Both sensors read 1 (both on line) - go forward
   if (yellowState == 1 && whiteState == 1) {
