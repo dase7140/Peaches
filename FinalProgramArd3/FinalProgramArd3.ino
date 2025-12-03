@@ -330,57 +330,57 @@ int sign(int num){  return (num < 0) ? -1 : 1;}
 
 
 void loop() {
-  //updates the left motor target speed to approach the set speed
-  if(left_speed_current != left_speed_target){
-    if(abs(left_speed_target-left_speed_current) > ACC_INCREMENT){
-      if((left_speed_current - left_speed_target)>0){
-        left_speed_current -= ACC_INCREMENT;
-      }
-      else {
-        left_speed_current += ACC_INCREMENT;
-      }
-    }
-    else{
-      left_speed_current = left_speed_target;
-    }
-    if(left_speed_target != 0){
-      // If we're requesting a direction change, or current is inside deadband,
-      // jump to the cutoff in the target direction to reliably pass the deadzone.
-      if (abs(left_speed_current) < CUTOFF_BAND) {
-        left_speed_current = sign(left_speed_target) * CUTOFF_BAND;
-      }
-    }
-    else {
-      left_speed_current = 0;
-    }
-  }
+  // //updates the left motor target speed to approach the set speed
+  // if(left_speed_current != left_speed_target){
+  //   if(abs(left_speed_target-left_speed_current) > ACC_INCREMENT){
+  //     if((left_speed_current - left_speed_target)>0){
+  //       left_speed_current -= ACC_INCREMENT;
+  //     }
+  //     else {
+  //       left_speed_current += ACC_INCREMENT;
+  //     }
+  //   }
+  //   else{
+  //     left_speed_current = left_speed_target;
+  //   }
+  //   if(left_speed_target != 0){
+  //     // If we're requesting a direction change, or current is inside deadband,
+  //     // jump to the cutoff in the target direction to reliably pass the deadzone.
+  //     if (abs(left_speed_current) < CUTOFF_BAND) {
+  //       left_speed_current = sign(left_speed_target) * CUTOFF_BAND;
+  //     }
+  //   }
+  //   else {
+  //     left_speed_current = 0;
+  //   }
+  // }
 
-  if(right_speed_current != right_speed_target){
-    if(abs(right_speed_target-right_speed_current) > ACC_INCREMENT){
-      if((right_speed_current - right_speed_target)>0){
-        right_speed_current -= ACC_INCREMENT;
-      }
-      else {
-        right_speed_current += ACC_INCREMENT;
-      }
-    }
-    else{
-      right_speed_current = right_speed_target;
-    }
-    if(right_speed_target != 0){
-      // If we're requesting a direction change, or current is inside deadband,
-      // jump to the cutoff in the target direction to reliably pass the deadzone.
-      if (abs(right_speed_current) < CUTOFF_BAND) {
-        right_speed_current = sign(right_speed_target) * CUTOFF_BAND;
-      }
-    }  
-    else{
-      right_speed_current = 0;
-    }
-  }
+  // if(right_speed_current != right_speed_target){
+  //   if(abs(right_speed_target-right_speed_current) > ACC_INCREMENT){
+  //     if((right_speed_current - right_speed_target)>0){
+  //       right_speed_current -= ACC_INCREMENT;
+  //     }
+  //     else {
+  //       right_speed_current += ACC_INCREMENT;
+  //     }
+  //   }
+  //   else{
+  //     right_speed_current = right_speed_target;
+  //   }
+  //   if(right_speed_target != 0){
+  //     // If we're requesting a direction change, or current is inside deadband,
+  //     // jump to the cutoff in the target direction to reliably pass the deadzone.
+  //     if (abs(right_speed_current) < CUTOFF_BAND) {
+  //       right_speed_current = sign(right_speed_target) * CUTOFF_BAND;
+  //     }
+  //   }  
+  //   else{
+  //     right_speed_current = 0;
+  //   }
+  // }
 
-  left_motor.drive(left_speed_current);
-  right_motor.drive(right_speed_current);  
+  left_motor.drive(left_speed_target);
+  right_motor.drive(right_speed_current_target);  
 
   // Process serial commands FIRST before executing states
   if (Serial.available() > 0){
@@ -714,10 +714,13 @@ void loop() {
       Serial.println("Arduino Received Unknown Command");
     }
   }
-  
+  else{
+    left_speed_target = 150;
+    right_speed_target = 150;
+  }
   // Continuously check for front obstacles (Arduino safety layer)
   //checkFrontObstacles();
-  //drive_IR();
+  drive_IR();
 }
 
 // void loop() {
