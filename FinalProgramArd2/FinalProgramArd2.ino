@@ -666,7 +666,7 @@ void loop() {
   
   // Continuously check for front obstacles (Arduino safety layer)
   //checkFrontObstacles();
-  drive_IR();
+  //drive_IR();
 }
 
 // void loop() {
