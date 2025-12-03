@@ -242,12 +242,16 @@ void drive_IR(int speed) {
     forward(left_motor, right_motor, speed);
   }
   // White sensor triggered (0) - turn left
-  else if (whiteState == 0) {
+  else if (whiteState == 0 && yellowState == 1  ) {
     turnLeft(speed);
   }
   // Yellow sensor triggered (0) - turn right
-  else if (yellowState == 0) {
+  else if (yellowState == 0 && whiteState == 1) {
     turnRight(speed);
+  }
+  // Both sensors triggered - Faceplanting - Dont stop
+  else if (yellowState == 0 && whiteState == 0) {
+    back(left_motor, right_motor, speed);
   }
 
   
