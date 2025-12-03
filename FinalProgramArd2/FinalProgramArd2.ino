@@ -203,29 +203,29 @@ void BrushMotorOff(){
 void turnLeft(int spd){
   left_speed_target = -spd;
   right_speed_target = spd;
-  // left_motor.drive(-spd);
-  // right_motor.drive(spd);
+  left_motor.drive(-spd);
+  right_motor.drive(spd);
 }
 
 void turnRight(int spd){
   left_speed_target = spd;
   right_speed_target = -spd;
-  // left_motor.drive(spd);
-  // right_motor.drive(-spd);
+  left_motor.drive(spd);
+  right_motor.drive(-spd);
 }
 
 void veerLeft(int leftSpd, int rightSpd){
   left_speed_target = leftSpd;
   right_speed_target = rightSpd;
-  // left_motor.drive(leftSpd);
-  // right_motor.drive(rightSpd);
+  left_motor.drive(leftSpd);
+  right_motor.drive(rightSpd);
 }
 
 void veerRight(int leftSpd, int rightSpd){
   left_speed_target = leftSpd;
   right_speed_target = rightSpd;
-    // left_motor.drive(leftSpd);
-    // right_motor.drive(rightSpd);
+    left_motor.drive(leftSpd);
+    right_motor.drive(rightSpd);
 }
 
 void drive_IR() {
@@ -234,9 +234,7 @@ void drive_IR() {
   
   // Both sensors read 1 (both on line) - go forward
   if (yellowState == 1 && whiteState == 1) {
-    //forward(left_motor, right_motor, 150);
-    // left_speed_target = 150;
-    // right_speed_target = 150;
+    forward(left_motor, right_motor, 150);
   }
   // White sensor triggered (0) - turn left
   else if (whiteState == 0) {
@@ -329,348 +327,348 @@ int sign(int num){  return (num < 0) ? -1 : 1;}
 
 
 
-void loop() {
-  //updates the left motor target speed to approach the set speed
-  if(left_speed_current != left_speed_target){
-    if(abs(left_speed_target-left_speed_current) > ACC_INCREMENT){
-      if((left_speed_current - left_speed_target)>0){
-        left_speed_current -= ACC_INCREMENT;
-      }
-      else {
-        left_speed_current += ACC_INCREMENT;
-      }
-    }
-    else{
-      left_speed_current = left_speed_target;
-    }
-    if(left_speed_target != 0){
-      // If we're requesting a direction change, or current is inside deadband,
-      // jump to the cutoff in the target direction to reliably pass the deadzone.
-      if (abs(left_speed_current) < CUTOFF_BAND) {
-        left_speed_current = sign(left_speed_target) * CUTOFF_BAND;
-      }
-    }
-    else {
-      left_speed_current = 0;
-    }
-  }
-
-  if(right_speed_current != right_speed_target){
-    if(abs(right_speed_target-right_speed_current) > ACC_INCREMENT){
-      if((right_speed_current - right_speed_target)>0){
-        right_speed_current -= ACC_INCREMENT;
-      }
-      else {
-        right_speed_current += ACC_INCREMENT;
-      }
-    }
-    else{
-      right_speed_current = right_speed_target;
-    }
-    if(right_speed_target != 0){
-      // If we're requesting a direction change, or current is inside deadband,
-      // jump to the cutoff in the target direction to reliably pass the deadzone.
-      if (abs(right_speed_current) < CUTOFF_BAND) {
-        right_speed_current = sign(right_speed_target) * CUTOFF_BAND;
-      }
-    }  
-    else{
-      right_speed_current = 0;
-    }
-  }
-
-  left_motor.drive(left_speed_current);
-  right_motor.drive(right_speed_current);  
-
-  // Process serial commands FIRST before executing states
-  if (Serial.available() > 0){
-    String msg = Serial.readStringUntil('\n');
-    msg.trim(); // Remove any leading/trailing whitespace
-
-    // Ignore empty messages
-    if (msg.length() == 0){
-      return; 
-    }
-    
-    // Process commands and change state
-    // Move Forward - Speed Levels 1-5 
-    if (msg == "MF1") {
-      safetyStopActive = false;
-      inGracePeriod = false;  // Terminate grace period on new command
-      current_speed = SPEED_1;
-      left_speed_target = current_speed;
-      right_speed_target = current_speed;
-      //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MF1");
-    }
-    else if (msg == "MF2") {
-      safetyStopActive = false;
-      inGracePeriod = false;  // Terminate grace period on new command
-      current_speed = SPEED_2;
-      left_speed_target = current_speed;
-      right_speed_target = current_speed;
-      //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MF2");
-    }
-    else if (msg == "MF3") {
-      safetyStopActive = false;
-      inGracePeriod = false;  // Terminate grace period on new command
-      current_speed = SPEED_3;
-      left_speed_target = current_speed;
-      right_speed_target = current_speed;
-      //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MF3");
-    }
-    else if (msg == "MF4") {
-      safetyStopActive = false;
-      inGracePeriod = false;  // Terminate grace period on new command
-      current_speed = SPEED_4;
-      left_speed_target = current_speed;
-      right_speed_target = current_speed;
-      //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MF4");
-    }
-    else if (msg == "MF5") {
-      safetyStopActive = false;
-      inGracePeriod = false;  // Terminate grace period on new command
-      current_speed = SPEED_5;
-      left_speed_target = current_speed;
-      right_speed_target = current_speed;
-      //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MF5");
-    }
-
-    // Move Right - Speed Levels 1-5
-    else if (msg == "MR1") {
-      safetyStopActive = false;
-      current_speed = SPEED_1;
-      turnRight(current_speed);
-      Serial.println("ACK:MR1");
-    }
-    else if (msg == "MR2") {
-      safetyStopActive = false;
-      current_speed = SPEED_2;
-      turnRight(current_speed);
-      Serial.println("ACK:MR2");
-    }
-    else if (msg == "MR3") {
-      safetyStopActive = false;
-      current_speed = SPEED_3;
-      turnRight(current_speed);
-      Serial.println("ACK:MR3");
-    }
-    else if (msg == "MR4") {
-      safetyStopActive = false;
-      current_speed = SPEED_4;
-      turnRight(current_speed);
-      Serial.println("ACK:MR4");
-    }
-    else if (msg == "MR5") {
-      safetyStopActive = false;
-      current_speed = SPEED_5;
-      turnRight(current_speed);
-      Serial.println("ACK:MR5");
-    }
-
-    // Move Left - Speed Levels 1-5
-    else if (msg == "ML1") {
-      safetyStopActive = false;
-      current_speed = SPEED_1;
-      turnLeft(current_speed);
-      Serial.println("ACK:ML1");
-    }
-    else if (msg == "ML2") {
-      safetyStopActive = false;
-      current_speed = SPEED_2;
-      turnLeft(current_speed);
-      Serial.println("ACK:ML2");
-    }
-    else if (msg == "ML3") {
-      safetyStopActive = false;
-      current_speed = SPEED_3;
-      turnLeft(current_speed);
-      Serial.println("ACK:ML3");
-    }
-    else if (msg == "ML4") {
-      safetyStopActive = false;
-      current_speed = SPEED_4;
-      turnLeft(current_speed);
-      Serial.println("ACK:ML4");
-    }
-    else if (msg == "ML5") {
-      safetyStopActive = false;
-      current_speed = SPEED_5;
-      turnLeft(current_speed);
-      Serial.println("ACK:ML5");
-    }
-
-    // Veer left, speed levels 1-5 (right motor turns faster)
-    else if (msg == "VL1") {
-      safetyStopActive = false;
-      inGracePeriod = false;
-      veerLeft(max(SPEED_ARRAY[1]/2,CUTOFF_BAND+1),SPEED_ARRAY[1]);
-      Serial.println("ACK:VL1");
-    }
-    else if (msg == "VL2") {
-      safetyStopActive = false;
-      inGracePeriod = false;
-      veerLeft(max(SPEED_ARRAY[2]/2,CUTOFF_BAND+1),SPEED_ARRAY[2]);
-      Serial.println("ACK:VL2");
-    }    
-    else if (msg == "VL3") {
-      safetyStopActive = false;
-      inGracePeriod = false;
-      veerLeft(max(SPEED_ARRAY[3]/2,CUTOFF_BAND+1),SPEED_ARRAY[3]);
-      Serial.println("ACK:VL3");
-    }
-    else if (msg == "VL4") {
-      safetyStopActive = false;
-      inGracePeriod = false;
-      veerLeft(max(SPEED_ARRAY[4]/2,CUTOFF_BAND+1),SPEED_ARRAY[4]);
-      Serial.println("ACK:VL4");
-    }
-    else if (msg == "VL5") {
-      safetyStopActive = false;
-      inGracePeriod = false;
-      veerLeft(max(SPEED_ARRAY[5]/2,CUTOFF_BAND+1),SPEED_ARRAY[5]);
-      Serial.println("ACK:VL5");
-    }
-
-
-    //veer right, speed levels 1-5, (left motor turns faster)
-    else if (msg == "VR1") {
-      safetyStopActive = false;
-      inGracePeriod = false;
-      veerRight(SPEED_ARRAY[1],max(SPEED_ARRAY[1]/2,CUTOFF_BAND+1));
-      Serial.println("ACK:VR1");
-    }
-    else if (msg == "VR2") {
-      safetyStopActive = false;
-      inGracePeriod = false;
-      veerRight(SPEED_ARRAY[2],max(SPEED_ARRAY[2]/2,CUTOFF_BAND+1));
-      Serial.println("ACK:VR2");
-    }    
-    else if (msg == "VR3") {
-      safetyStopActive = false;
-      inGracePeriod = false;
-      veerRight(SPEED_ARRAY[3],max(SPEED_ARRAY[3]/2,CUTOFF_BAND+1));
-      Serial.println("ACK:VR3");
-    }
-    else if (msg == "VR4") {
-      safetyStopActive = false;
-      inGracePeriod = false;
-      veerRight(SPEED_ARRAY[4],max(SPEED_ARRAY[4]/2,CUTOFF_BAND+1));
-      Serial.println("ACK:VR4");
-    }
-    else if (msg == "VR5") {
-      safetyStopActive = false;
-      inGracePeriod = false;
-      veerRight(SPEED_ARRAY[5],max(SPEED_ARRAY[5]/2,CUTOFF_BAND+1));
-      Serial.println("ACK:VR5");
-    }
-
-
-    // Move Backward - Speed Levels 1-5
-    else if (msg == "MB1") {
-      safetyStopActive = false;
-      current_speed = SPEED_1;
-      left_speed_target = -current_speed;
-      right_speed_target = -current_speed;
-      //back(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MB1");
-    }
-    else if (msg == "MB2") {
-      safetyStopActive = false;
-      current_speed = SPEED_2;
-      left_speed_target = -current_speed;
-      right_speed_target = -current_speed;
-      //back(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MB2");
-    }
-    else if (msg == "MB3") {
-      safetyStopActive = false;
-      current_speed = SPEED_3;
-      left_speed_target = -current_speed;
-      right_speed_target = -current_speed;
-      //back(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MB3");
-    }
-    else if (msg == "MB4") {
-      safetyStopActive = false;
-      current_speed = SPEED_4;
-      left_speed_target = -current_speed;
-      right_speed_target = -current_speed;
-      //back(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MB4");
-    }
-    else if (msg == "MB5") {
-      safetyStopActive = false;
-      current_speed = SPEED_5;
-      left_speed_target = -current_speed;
-      right_speed_target = -current_speed;
-      //back(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MB5");
-    }
-
-    //Stop moving
-    else if (msg == "MF0") {
-      safetyStopActive = false;
-      left_speed_target = 0;
-      right_speed_target = 0;
-      //brake(left_motor, right_motor);
-      Serial.println("ACK:MF0");
-    }
-
-    // Activate Brush Motor
-    else if (msg == "ABM") {
-      Serial.println("ACK:ABM");
-      BrushMotorOn();
-    }
-    // Deactivate Brush Motor
-    else if (msg == "DBM") {
-      Serial.println("ACK:DBM");
-      BrushMotorOff();
-    }
-
-    // Lower Tray
-    else if (msg == "LTY") {
-      Serial.println("ACK:LTY");
-      LowerTray();
-    }
-    // Raise Tray
-    else if (msg == "RTY") {
-      Serial.println("ACK:RTY");
-      RaiseTray();
-    }
-
-    // Read IR Sensor Distances
-    else if (msg == "RIS") {
-      Serial.println("ACK:RIS");
-      int IR_distances[numIRSensors];
-      ReadAllIRDistances(IR_distances);
-      Serial.print("IR:");
-      for (int i = 0; i < numIRSensors; i++) {
-        Serial.print(IR_distances[i]);
-        if (i < numIRSensors - 1) {
-          Serial.print(",");
-        }
-      }
-      Serial.println();
-    }
-
-    // Unknown Command
-    else {
-      Serial.println("Arduino Received Unknown Command");
-    }
-  }
-  
-  // Continuously check for front obstacles (Arduino safety layer)
-  //checkFrontObstacles();
-  //drive_IR();
-}
-
 // void loop() {
-//   // Drive based on IR line sensors
-//   drive_IR();
+//   //updates the left motor target speed to approach the set speed
+//   if(left_speed_current != left_speed_target){
+//     if(abs(left_speed_target-left_speed_current) > ACC_INCREMENT){
+//       if((left_speed_current - left_speed_target)>0){
+//         left_speed_current -= ACC_INCREMENT;
+//       }
+//       else {
+//         left_speed_current += ACC_INCREMENT;
+//       }
+//     }
+//     else{
+//       left_speed_current = left_speed_target;
+//     }
+//     if(left_speed_target != 0){
+//       // If we're requesting a direction change, or current is inside deadband,
+//       // jump to the cutoff in the target direction to reliably pass the deadzone.
+//       if (abs(left_speed_current) < CUTOFF_BAND) {
+//         left_speed_current = sign(left_speed_target) * CUTOFF_BAND;
+//       }
+//     }
+//     else {
+//       left_speed_current = 0;
+//     }
+//   }
+
+//   if(right_speed_current != right_speed_target){
+//     if(abs(right_speed_target-right_speed_current) > ACC_INCREMENT){
+//       if((right_speed_current - right_speed_target)>0){
+//         right_speed_current -= ACC_INCREMENT;
+//       }
+//       else {
+//         right_speed_current += ACC_INCREMENT;
+//       }
+//     }
+//     else{
+//       right_speed_current = right_speed_target;
+//     }
+//     if(right_speed_target != 0){
+//       // If we're requesting a direction change, or current is inside deadband,
+//       // jump to the cutoff in the target direction to reliably pass the deadzone.
+//       if (abs(right_speed_current) < CUTOFF_BAND) {
+//         right_speed_current = sign(right_speed_target) * CUTOFF_BAND;
+//       }
+//     }  
+//     else{
+//       right_speed_current = 0;
+//     }
+//   }
+
+//   left_motor.drive(left_speed_current);
+//   right_motor.drive(right_speed_current);  
+
+//   // Process serial commands FIRST before executing states
+//   if (Serial.available() > 0){
+//     String msg = Serial.readStringUntil('\n');
+//     msg.trim(); // Remove any leading/trailing whitespace
+
+//     // Ignore empty messages
+//     if (msg.length() == 0){
+//       return; 
+//     }
+    
+//     // Process commands and change state
+//     // Move Forward - Speed Levels 1-5 
+//     if (msg == "MF1") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;  // Terminate grace period on new command
+//       current_speed = SPEED_1;
+//       left_speed_target = current_speed;
+//       right_speed_target = current_speed;
+//       //forward(left_motor, right_motor, current_speed);
+//       Serial.println("ACK:MF1");
+//     }
+//     else if (msg == "MF2") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;  // Terminate grace period on new command
+//       current_speed = SPEED_2;
+//       left_speed_target = current_speed;
+//       right_speed_target = current_speed;
+//       //forward(left_motor, right_motor, current_speed);
+//       Serial.println("ACK:MF2");
+//     }
+//     else if (msg == "MF3") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;  // Terminate grace period on new command
+//       current_speed = SPEED_3;
+//       left_speed_target = current_speed;
+//       right_speed_target = current_speed;
+//       //forward(left_motor, right_motor, current_speed);
+//       Serial.println("ACK:MF3");
+//     }
+//     else if (msg == "MF4") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;  // Terminate grace period on new command
+//       current_speed = SPEED_4;
+//       left_speed_target = current_speed;
+//       right_speed_target = current_speed;
+//       //forward(left_motor, right_motor, current_speed);
+//       Serial.println("ACK:MF4");
+//     }
+//     else if (msg == "MF5") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;  // Terminate grace period on new command
+//       current_speed = SPEED_5;
+//       left_speed_target = current_speed;
+//       right_speed_target = current_speed;
+//       //forward(left_motor, right_motor, current_speed);
+//       Serial.println("ACK:MF5");
+//     }
+
+//     // Move Right - Speed Levels 1-5
+//     else if (msg == "MR1") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_1;
+//       turnRight(current_speed);
+//       Serial.println("ACK:MR1");
+//     }
+//     else if (msg == "MR2") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_2;
+//       turnRight(current_speed);
+//       Serial.println("ACK:MR2");
+//     }
+//     else if (msg == "MR3") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_3;
+//       turnRight(current_speed);
+//       Serial.println("ACK:MR3");
+//     }
+//     else if (msg == "MR4") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_4;
+//       turnRight(current_speed);
+//       Serial.println("ACK:MR4");
+//     }
+//     else if (msg == "MR5") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_5;
+//       turnRight(current_speed);
+//       Serial.println("ACK:MR5");
+//     }
+
+//     // Move Left - Speed Levels 1-5
+//     else if (msg == "ML1") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_1;
+//       turnLeft(current_speed);
+//       Serial.println("ACK:ML1");
+//     }
+//     else if (msg == "ML2") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_2;
+//       turnLeft(current_speed);
+//       Serial.println("ACK:ML2");
+//     }
+//     else if (msg == "ML3") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_3;
+//       turnLeft(current_speed);
+//       Serial.println("ACK:ML3");
+//     }
+//     else if (msg == "ML4") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_4;
+//       turnLeft(current_speed);
+//       Serial.println("ACK:ML4");
+//     }
+//     else if (msg == "ML5") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_5;
+//       turnLeft(current_speed);
+//       Serial.println("ACK:ML5");
+//     }
+
+//     // Veer left, speed levels 1-5 (right motor turns faster)
+//     else if (msg == "VL1") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;
+//       veerLeft(max(SPEED_ARRAY[1]/2,CUTOFF_BAND+1),SPEED_ARRAY[1]);
+//       Serial.println("ACK:VL1");
+//     }
+//     else if (msg == "VL2") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;
+//       veerLeft(max(SPEED_ARRAY[2]/2,CUTOFF_BAND+1),SPEED_ARRAY[2]);
+//       Serial.println("ACK:VL2");
+//     }    
+//     else if (msg == "VL3") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;
+//       veerLeft(max(SPEED_ARRAY[3]/2,CUTOFF_BAND+1),SPEED_ARRAY[3]);
+//       Serial.println("ACK:VL3");
+//     }
+//     else if (msg == "VL4") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;
+//       veerLeft(max(SPEED_ARRAY[4]/2,CUTOFF_BAND+1),SPEED_ARRAY[4]);
+//       Serial.println("ACK:VL4");
+//     }
+//     else if (msg == "VL5") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;
+//       veerLeft(max(SPEED_ARRAY[5]/2,CUTOFF_BAND+1),SPEED_ARRAY[5]);
+//       Serial.println("ACK:VL5");
+//     }
+
+
+//     //veer right, speed levels 1-5, (left motor turns faster)
+//     else if (msg == "VR1") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;
+//       veerRight(SPEED_ARRAY[1],max(SPEED_ARRAY[1]/2,CUTOFF_BAND+1));
+//       Serial.println("ACK:VR1");
+//     }
+//     else if (msg == "VR2") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;
+//       veerRight(SPEED_ARRAY[2],max(SPEED_ARRAY[2]/2,CUTOFF_BAND+1));
+//       Serial.println("ACK:VR2");
+//     }    
+//     else if (msg == "VR3") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;
+//       veerRight(SPEED_ARRAY[3],max(SPEED_ARRAY[3]/2,CUTOFF_BAND+1));
+//       Serial.println("ACK:VR3");
+//     }
+//     else if (msg == "VR4") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;
+//       veerRight(SPEED_ARRAY[4],max(SPEED_ARRAY[4]/2,CUTOFF_BAND+1));
+//       Serial.println("ACK:VR4");
+//     }
+//     else if (msg == "VR5") {
+//       safetyStopActive = false;
+//       inGracePeriod = false;
+//       veerRight(SPEED_ARRAY[5],max(SPEED_ARRAY[5]/2,CUTOFF_BAND+1));
+//       Serial.println("ACK:VR5");
+//     }
+
+
+//     // Move Backward - Speed Levels 1-5
+//     else if (msg == "MB1") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_1;
+//       left_speed_target = -current_speed;
+//       right_speed_target = -current_speed;
+//       //back(left_motor, right_motor, current_speed);
+//       Serial.println("ACK:MB1");
+//     }
+//     else if (msg == "MB2") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_2;
+//       left_speed_target = -current_speed;
+//       right_speed_target = -current_speed;
+//       //back(left_motor, right_motor, current_speed);
+//       Serial.println("ACK:MB2");
+//     }
+//     else if (msg == "MB3") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_3;
+//       left_speed_target = -current_speed;
+//       right_speed_target = -current_speed;
+//       //back(left_motor, right_motor, current_speed);
+//       Serial.println("ACK:MB3");
+//     }
+//     else if (msg == "MB4") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_4;
+//       left_speed_target = -current_speed;
+//       right_speed_target = -current_speed;
+//       //back(left_motor, right_motor, current_speed);
+//       Serial.println("ACK:MB4");
+//     }
+//     else if (msg == "MB5") {
+//       safetyStopActive = false;
+//       current_speed = SPEED_5;
+//       left_speed_target = -current_speed;
+//       right_speed_target = -current_speed;
+//       //back(left_motor, right_motor, current_speed);
+//       Serial.println("ACK:MB5");
+//     }
+
+//     //Stop moving
+//     else if (msg == "MF0") {
+//       safetyStopActive = false;
+//       left_speed_target = 0;
+//       right_speed_target = 0;
+//       //brake(left_motor, right_motor);
+//       Serial.println("ACK:MF0");
+//     }
+
+//     // Activate Brush Motor
+//     else if (msg == "ABM") {
+//       Serial.println("ACK:ABM");
+//       BrushMotorOn();
+//     }
+//     // Deactivate Brush Motor
+//     else if (msg == "DBM") {
+//       Serial.println("ACK:DBM");
+//       BrushMotorOff();
+//     }
+
+//     // Lower Tray
+//     else if (msg == "LTY") {
+//       Serial.println("ACK:LTY");
+//       LowerTray();
+//     }
+//     // Raise Tray
+//     else if (msg == "RTY") {
+//       Serial.println("ACK:RTY");
+//       RaiseTray();
+//     }
+
+//     // Read IR Sensor Distances
+//     else if (msg == "RIS") {
+//       Serial.println("ACK:RIS");
+//       int IR_distances[numIRSensors];
+//       ReadAllIRDistances(IR_distances);
+//       Serial.print("IR:");
+//       for (int i = 0; i < numIRSensors; i++) {
+//         Serial.print(IR_distances[i]);
+//         if (i < numIRSensors - 1) {
+//           Serial.print(",");
+//         }
+//       }
+//       Serial.println();
+//     }
+
+//     // Unknown Command
+//     else {
+//       Serial.println("Arduino Received Unknown Command");
+//     }
+//   }
+  
+//   // Continuously check for front obstacles (Arduino safety layer)
+//   checkFrontObstacles();
   
 // }
+
+void loop() {
+  // Drive based on IR line sensors
+  drive_IR();
+  
+}
