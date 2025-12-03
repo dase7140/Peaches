@@ -228,23 +228,99 @@ void veerRight(int leftSpd, int rightSpd){
     // right_motor.drive(rightSpd);
 }
 
-void drive_IR() {
+
+void drive_IR(int speed) {
   int yellowState = digitalRead(yellowPin);
   int whiteState = digitalRead(whitePin);
+  int restTime = 100;  // Change this to increase turning 
+  int currentSpeed = speed;
+  int distances[numIRSensors];  // Declare distances array
+  
+  if (loopCounter > 5){
+  int frontLeft, frontRight;
+  int distances[numIRSensors];
+  ReadFrontIRDistances(frontLeft, frontRight);
+  // Left - 0
+// Front Right - 1
+// Front Left - 2
+// Right - 3  
+// Back - 4
+  
+
+
+  if (frontRight < 300 || frontLeft < 300){
+    currentSpeed = 100;
+  }
+  else {
+    currentSpeed = speed;
+  }
+  loopCounter = 0;
+  }
+
+    loopCounter++;
+
+//   if (distances[1] < 100 && distances[2] > 100){
+//     turnLeft(speed);
+
+//   }
+//   else if (distances[2] < 100 && distances[1] > 100){
+//     turnRight(speed);
+//   }
+//   else if (distances[2] < 100 && distances[1] < 100){
+//     back(left_motor, right_motor, currentSpeed);
+//     delay(restTime);
+//     brake(left_motor, right_motor);
+//     int leftArea = distances[0] + distances[2];
+//     int rightArea = distances[1] + distances[3];
+//     if (leftArea > rightArea){
+//       turnLeft(speed);
+//     }
+//     else {
+//       turnRight(speed);
+//     }
+//   }
   
   // Both sensors read 1 (both on line) - go forward
   if (yellowState == 1 && whiteState == 1) {
-    //forward(left_motor, right_motor, 150);
-    // left_speed_target = 150;
-    // right_speed_target = 150;
+    //forward(left_motor, right_motor, currentSpeed);
+    //left_speed_target = current_speed;
+    //right_speed_target = current_speed;
   }
   // White sensor triggered (0) - turn left
-  else if (whiteState == 0) {
-    turnLeft(150);
+  else if (whiteState == 0 && yellowState == 1  ) {
+    turnLeft(speed);
+    delay(restTime);
+    left_speed_target = 0;
+    right_speed_target = 0;
   }
   // Yellow sensor triggered (0) - turn right
-  else if (yellowState == 0) {
-    turnRight(150);
+  else if (yellowState == 0 && whiteState == 1) {
+    turnRight(speed);
+    delay(restTime);
+    left_speed_target = 0;
+    right_speed_target = 0;
+  }
+  // Both sensors triggered - Faceplanting - Dont stop
+  else if (yellowState == 0 && whiteState == 0) {
+
+    back(left_motor, right_motor, currentSpeed);
+    delay(restTime);
+    brake(left_motor, right_motor);
+    ReadAllIRDistances(distances);
+    int leftArea = distances[0] + distances[2];
+    int rightArea = distances[1] + distances[3];
+    if (leftArea > rightArea){
+      turnLeft(speed);
+      delay(restTime);
+      left_speed_target = 0;
+      right_speed_target = 0;
+    }
+    else {
+      turnRight(speed);
+      delay(restTime);
+      left_speed_target = 0;
+      right_speed_target = 0;
+    }
   }
 }
 
@@ -393,7 +469,7 @@ void loop() {
       return; 
     }
     msg = msgRcd;
-    acked = false
+    acked = false;
   }
   
 
