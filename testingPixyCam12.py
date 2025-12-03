@@ -110,74 +110,96 @@ def Pixicam():  # FOR DICE
 
 def lookForFlags():
     """
-    looks for the signatures associated with the three flags on the course, checks if within distance threshold of them
-    returns which of the three flags are visible at any time
-
-    wrapped in function that determines which flag is present, updates booleans and updates relevant commands (raises tray, etc)
-
-    returns
-        success: bool - returns true if the camera successfully read, otherwise all arguments are false
-        first_flag: bool -(before gravel)
-        second_flag: bool -  (after gravel)
-        third_flag: bool - (after bridge)
+    Detects flag colors (orange, light blue, purple) but ignores them
+    if they appear in the lower 20% of the screen.
     """
+
     try:
         count = pixy.ccc_get_blocks(100, blocks)
         if count == 0:
-            # no blocks detected
             return True, False, False, False
 
-        # Map signatures to booleans
-        seen = {sig: seeColor(sig, count) for sig in COLOR_MAP.values()}
+        frame_height = 208
+        ignore_threshold = int(frame_height * 0.80)
 
-        # Example logic 
-        first_flag = seen.get(COLOR_MAP["orange"], False) and seen.get(COLOR_MAP["purple"], False)
-        second_flag = seen.get(COLOR_MAP["orange"], False) and seen.get(COLOR_MAP["l_blue"], False)
-        third_flag = seen.get(COLOR_MAP["purple"], False) and seen.get(COLOR_MAP["l_blue"], False)
+        # Colors involved in flag combinations
+        FLAG_SIGS = {
+            COLOR_MAP["orange"],
+            COLOR_MAP["l_blue"],
+            COLOR_MAP["purple"]
+        }
+
+        # Initialize seen colors
+        seen = {sig: False for sig in COLOR_MAP.values()}
+
+        for i in range(count):
+            sig = blocks[i].m_signature
+            y   = blocks[i].m_y
+
+            # Ignore ONLY flag-related colors in lower 20%
+            if sig in FLAG_SIGS and y > ignore_threshold:
+                continue
+
+            # Mark color as seen
+            if sig in seen:
+                seen[sig] = True
+
+        # Combinations for flags
+        first_flag  = seen[COLOR_MAP["orange"]] and seen[COLOR_MAP["purple"]]
+        second_flag = seen[COLOR_MAP["orange"]] and seen[COLOR_MAP["l_blue"]]
+        third_flag  = seen[COLOR_MAP["purple"]] and seen[COLOR_MAP["l_blue"]]
 
         return True, first_flag, second_flag, third_flag
+
     except Exception as e:
-        print("[PIXy ERROR] lookForFlags exception:", e)
+        print("[PIXY ERROR] lookForFlags exception:", e)
         return False, False, False, False
+
+
+# Debounce counters
+first_flag_count = 0
+second_flag_count = 0
+third_flag_count = 0
+
+DEBOUNCE_FRAMES = 3   # number of consecutive frames required
 
 def pixySetFlags():
     """
-    When called, checks the current set of pixy blocks to determine if we have seen the colors relevent to the flags
-    on the course
-
-    If so, makes relevent variable adjustments:
-    See first flag: raises collection tray, bool blocks any further commands to lower it, increases speeds in all navigation commands
-    See second flag: removes gravel boolean and sets bridge one. This changes speeds and may initiate a bridge animation
-    See third flag: reset first two flags
-
-    returns 
-        nothing
-
+    Debounced flag detection for gravel/bridge progression.
+    A flag must be detected for DEBOUNCE_FRAMES in a row
+    before applying mode changes.
     """
-    #print("Setting pixy flags:")
 
-    global onGravel, onBridge, BASE_SPEED, TURN_SPEED, VEER_SPEED 
+    global onGravel, onBridge
+    global first_flag_count, second_flag_count, third_flag_count
+
     success, first_flag, second_flag, third_flag = lookForFlags()
     if not success:
         return
 
-    if first_flag and not onGravel:
-        print("[PIXY FLAGS] Entering gravel mode")
+    # --- Update debounce counters ---
+    first_flag_count  = first_flag_count  + 1 if first_flag  else 0
+    second_flag_count = second_flag_count + 1 if second_flag else 0
+    third_flag_count  = third_flag_count  + 1 if third_flag  else 0
+
+    # ---- First Flag: Enter Gravel Mode ----
+    if first_flag_count >= DEBOUNCE_FRAMES and not onGravel:
+        print("[PIXY FLAGS] Entering gravel mode (debounced)")
         onGravel = True
         onBridge = False
- 
 
-    elif second_flag and not onBridge:
-        print("[PIXY FLAGS] Entering bridge mode")
+    # ---- Second Flag: Enter Bridge Mode ----
+    elif second_flag_count >= DEBOUNCE_FRAMES and not onBridge:
+        print("[PIXY FLAGS] Entering bridge mode (debounced)")
         onBridge = True
         onGravel = False
 
-
-    elif third_flag: #SLOW motors to pass ramp
+    # ---- Third Flag: Exit special modes ----
+    elif third_flag_count >= DEBOUNCE_FRAMES:
         if onGravel or onBridge:
-            print("[PIXY FLAGS] Leaving special areas")
-        onBridge = False
+            print("[PIXY FLAGS] Leaving special areas (debounced)")
         onGravel = False
+        onBridge = False
 
 
 def mainLoop(): #logic for dice vs flag prioiritization
@@ -191,3 +213,4 @@ def mainLoop(): #logic for dice vs flag prioiritization
 if __name__ == '__main__':
     mainLoop()
     time.sleep(0.02)
+
