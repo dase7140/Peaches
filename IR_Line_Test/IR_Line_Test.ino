@@ -237,10 +237,22 @@ void drive_IR(int speed) {
   int yellowState = digitalRead(yellowPin);
   int whiteState = digitalRead(whitePin);
   int restTime = 25;
+  int currentSpeed = speed;
+
+  int frontLeft, frontRight;
+  ReadFrontIRDistances(frontLeft, frontRight);
+  
+  // Check for critical obstacle
+  if (frontLeft < 300|| frontRight < 300){
+    currentSpeed = 180;
+  }
+  else {
+    currentSpeed = speed;
+  }
   
   // Both sensors read 1 (both on line) - go forward
   if (yellowState == 1 && whiteState == 1) {
-    forward(left_motor, right_motor, speed);
+    forward(left_motor, right_motor, currentSpeed);
   }
   // White sensor triggered (0) - turn left
   else if (whiteState == 0 && yellowState == 1  ) {
