@@ -380,7 +380,7 @@ void loop() {
   // }
 
   left_motor.drive(left_speed_target);
-  right_motor.drive(right_speed_current_target);  
+  right_motor.drive(right_speed_target);  
 
   // Process serial commands FIRST before executing states
   if (Serial.available() > 0){
@@ -714,10 +714,10 @@ void loop() {
       Serial.println("Arduino Received Unknown Command");
     }
   }
-  else{
-    left_speed_target = 150;
-    right_speed_target = 150;
-  }
+  // else{
+  //   left_speed_target = 150;
+  //   right_speed_target = 150;
+  // }
   // Continuously check for front obstacles (Arduino safety layer)
   //checkFrontObstacles();
   drive_IR();
