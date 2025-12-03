@@ -276,7 +276,7 @@ void drive_IR(int speed) {
   else if (yellowState == 0 && whiteState == 0) {
     // Do nothing
   }
-
+}
 
 // Arduino Safety Stop System
 const int CRITICAL_STOP_DISTANCE = 115;  // mm - Emergency stop threshold
