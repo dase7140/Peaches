@@ -259,7 +259,17 @@ void drive_IR(int speed) {
   else if (frontLeft < 100 && frontRight < 100){
     back(left_motor, right_motor, currentSpeed);
     delay(restTime);
-    turnRight(speed*.75);
+    brake(left_motor, right_motor);
+    int distances[numIRSensors];
+    ReadAllIRDistances(distances);
+    int leftArea = distances[0] + distances[2];
+    int rightArea = distances[1] + distances[3];
+    if (leftArea > rightArea){
+      turnLeft(speed*.75);
+    }
+    else {
+      turnRight(speed*.75);
+    }
   }
   
   // Both sensors read 1 (both on line) - go forward
