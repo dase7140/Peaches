@@ -440,6 +440,57 @@ void loop() {
       Serial.println("ACK:MF5");
     }
 
+    else if (msg == "SD1") {
+      safetyStopActive = false;
+      inGracePeriod = false;  // Terminate grace period on new command
+      current_speed = SPEED_1;
+      left_speed_target = current_speed;
+      right_speed_target = current_speed;
+      drive_IR();
+      //forward(left_motor, right_motor, current_speed);
+      Serial.println("ACKSDF1");
+    }
+    else if (msg == "SD2") {
+      safetyStopActive = false;
+      inGracePeriod = false;  // Terminate grace period on new command
+      current_speed = SPEED_2;
+      left_speed_target = current_speed;
+      right_speed_target = current_speed;
+      drive_IR();
+      //forward(left_motor, right_motor, current_speed);
+      Serial.println("ACK:SD2");
+    }
+    else if (msg == "SD3") {
+      safetyStopActive = false;
+      inGracePeriod = false;  // Terminate grace period on new command
+      current_speed = SPEED_3;
+      left_speed_target = current_speed;
+      right_speed_target = current_speed;
+      drive_IR();
+      //forward(left_motor, right_motor, current_speed);
+      Serial.println("ACK:SD3");
+    }
+    else if (msg == "SD4") {
+      safetyStopActive = false;
+      inGracePeriod = false;  // Terminate grace period on new command
+      current_speed = SPEED_4;
+      left_speed_target = current_speed;
+      right_speed_target = current_speed;
+      drive_IR();
+      //forward(left_motor, right_motor, current_speed);
+      Serial.println("ACK:SD4");
+    }
+    else if (msg == "SD5") {
+      safetyStopActive = false;
+      inGracePeriod = false;  // Terminate grace period on new command
+      current_speed = SPEED_5;
+      left_speed_target = current_speed;
+      right_speed_target = current_speed;
+      drive_IR();
+      //forward(left_motor, right_motor, current_speed);
+      Serial.println("ACK:SD5");
+    }
+
     // Move Right - Speed Levels 1-5
     else if (msg == "MR1") {
       safetyStopActive = false;
