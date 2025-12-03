@@ -383,6 +383,7 @@ void loop() {
   right_motor.drive(right_speed_target);  
 
   // Process serial commands FIRST before executing states
+  bool acked = false;
   if (Serial.available() > 0){
     String msgRcd = Serial.readStringUntil('\n');
     msgRcd.trim(); // Remove any leading/trailing whitespace
@@ -392,6 +393,7 @@ void loop() {
       return; 
     }
     msg = msgRcd;
+    acked = false
   }
   
 
@@ -404,7 +406,10 @@ void loop() {
       left_speed_target = current_speed;
       right_speed_target = current_speed;
       //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MF1");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "MF2") {
       safetyStopActive = false;
@@ -413,7 +418,10 @@ void loop() {
       left_speed_target = current_speed;
       right_speed_target = current_speed;
       //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MF2");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "MF3") {
       safetyStopActive = false;
@@ -422,7 +430,10 @@ void loop() {
       left_speed_target = current_speed;
       right_speed_target = current_speed;
       //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MF3");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "MF4") {
       safetyStopActive = false;
@@ -431,7 +442,10 @@ void loop() {
       left_speed_target = current_speed;
       right_speed_target = current_speed;
       //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MF4");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "MF5") {
       safetyStopActive = false;
@@ -440,7 +454,10 @@ void loop() {
       left_speed_target = current_speed;
       right_speed_target = current_speed;
       //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MF5");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
 
     else if (msg == "SD1") {
@@ -451,7 +468,10 @@ void loop() {
       right_speed_target = current_speed;
       drive_IR();
       //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACKSDF1");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "SD2") {
       safetyStopActive = false;
@@ -461,7 +481,10 @@ void loop() {
       right_speed_target = current_speed;
       drive_IR();
       //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:SD2");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "SD3") {
       safetyStopActive = false;
@@ -471,7 +494,10 @@ void loop() {
       right_speed_target = current_speed;
       drive_IR();
       //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:SD3");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "SD4") {
       safetyStopActive = false;
@@ -481,7 +507,10 @@ void loop() {
       right_speed_target = current_speed;
       drive_IR();
       //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:SD4");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "SD5") {
       safetyStopActive = false;
@@ -491,7 +520,10 @@ void loop() {
       right_speed_target = current_speed;
       drive_IR();
       //forward(left_motor, right_motor, current_speed);
-      Serial.println("ACK:SD5");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
 
     // Move Right - Speed Levels 1-5
@@ -499,31 +531,46 @@ void loop() {
       safetyStopActive = false;
       current_speed = SPEED_1;
       turnRight(current_speed);
-      Serial.println("ACK:MR1");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "MR2") {
       safetyStopActive = false;
       current_speed = SPEED_2;
       turnRight(current_speed);
-      Serial.println("ACK:MR2");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "MR3") {
       safetyStopActive = false;
       current_speed = SPEED_3;
       turnRight(current_speed);
-      Serial.println("ACK:MR3");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "MR4") {
       safetyStopActive = false;
       current_speed = SPEED_4;
       turnRight(current_speed);
-      Serial.println("ACK:MR4");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "MR5") {
       safetyStopActive = false;
       current_speed = SPEED_5;
       turnRight(current_speed);
-      Serial.println("ACK:MR5");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
 
     // Move Left - Speed Levels 1-5
@@ -531,31 +578,46 @@ void loop() {
       safetyStopActive = false;
       current_speed = SPEED_1;
       turnLeft(current_speed);
-      Serial.println("ACK:ML1");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "ML2") {
       safetyStopActive = false;
       current_speed = SPEED_2;
       turnLeft(current_speed);
-      Serial.println("ACK:ML2");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "ML3") {
       safetyStopActive = false;
       current_speed = SPEED_3;
       turnLeft(current_speed);
-      Serial.println("ACK:ML3");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "ML4") {
       safetyStopActive = false;
       current_speed = SPEED_4;
       turnLeft(current_speed);
-      Serial.println("ACK:ML4");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "ML5") {
       safetyStopActive = false;
       current_speed = SPEED_5;
       turnLeft(current_speed);
-      Serial.println("ACK:ML5");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
 
     // Veer left, speed levels 1-5 (right motor turns faster)
@@ -563,31 +625,46 @@ void loop() {
       safetyStopActive = false;
       inGracePeriod = false;
       veerLeft(max(SPEED_ARRAY[1]/2,CUTOFF_BAND+1),SPEED_ARRAY[1]);
-      Serial.println("ACK:VL1");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "VL2") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerLeft(max(SPEED_ARRAY[2]/2,CUTOFF_BAND+1),SPEED_ARRAY[2]);
-      Serial.println("ACK:VL2");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }    
     else if (msg == "VL3") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerLeft(max(SPEED_ARRAY[3]/2,CUTOFF_BAND+1),SPEED_ARRAY[3]);
-      Serial.println("ACK:VL3");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "VL4") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerLeft(max(SPEED_ARRAY[4]/2,CUTOFF_BAND+1),SPEED_ARRAY[4]);
-      Serial.println("ACK:VL4");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "VL5") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerLeft(max(SPEED_ARRAY[5]/2,CUTOFF_BAND+1),SPEED_ARRAY[5]);
-      Serial.println("ACK:VL5");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
 
 
@@ -596,31 +673,46 @@ void loop() {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[1],max(SPEED_ARRAY[1]/2,CUTOFF_BAND+1));
-      Serial.println("ACK:VR1");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "VR2") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[2],max(SPEED_ARRAY[2]/2,CUTOFF_BAND+1));
-      Serial.println("ACK:VR2");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }    
     else if (msg == "VR3") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[3],max(SPEED_ARRAY[3]/2,CUTOFF_BAND+1));
-      Serial.println("ACK:VR3");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "VR4") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[4],max(SPEED_ARRAY[4]/2,CUTOFF_BAND+1));
-      Serial.println("ACK:VR4");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "VR5") {
       safetyStopActive = false;
       inGracePeriod = false;
       veerRight(SPEED_ARRAY[5],max(SPEED_ARRAY[5]/2,CUTOFF_BAND+1));
-      Serial.println("ACK:VR5");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
 
 
@@ -631,7 +723,10 @@ void loop() {
       left_speed_target = -current_speed;
       right_speed_target = -current_speed;
       //back(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MB1");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "MB2") {
       safetyStopActive = false;
@@ -639,7 +734,10 @@ void loop() {
       left_speed_target = -current_speed;
       right_speed_target = -current_speed;
       //back(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MB2");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "MB3") {
       safetyStopActive = false;
@@ -647,7 +745,10 @@ void loop() {
       left_speed_target = -current_speed;
       right_speed_target = -current_speed;
       //back(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MB3");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "MB4") {
       safetyStopActive = false;
@@ -655,7 +756,10 @@ void loop() {
       left_speed_target = -current_speed;
       right_speed_target = -current_speed;
       //back(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MB4");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
     else if (msg == "MB5") {
       safetyStopActive = false;
@@ -663,7 +767,10 @@ void loop() {
       left_speed_target = -current_speed;
       right_speed_target = -current_speed;
       //back(left_motor, right_motor, current_speed);
-      Serial.println("ACK:MB5");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
 
     //Stop moving
@@ -672,34 +779,52 @@ void loop() {
       left_speed_target = 0;
       right_speed_target = 0;
       //brake(left_motor, right_motor);
-      Serial.println("ACK:MF0");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
     }
 
     // Activate Brush Motor
     else if (msg == "ABM") {
-      Serial.println("ACK:ABM");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
       BrushMotorOn();
     }
     // Deactivate Brush Motor
     else if (msg == "DBM") {
-      Serial.println("ACK:DBM");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
       BrushMotorOff();
     }
 
     // Lower Tray
     else if (msg == "LTY") {
-      Serial.println("ACK:LTY");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
       LowerTray();
     }
     // Raise Tray
     else if (msg == "RTY") {
-      Serial.println("ACK:RTY");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
       RaiseTray();
     }
 
     // Read IR Sensor Distances
     else if (msg == "RIS") {
-      Serial.println("ACK:RIS");
+      if(!acked){
+        Serial.println(String("ACK:") + msg);
+        acked = true;
+      }
       int IR_distances[numIRSensors];
       ReadAllIRDistances(IR_distances);
       Serial.print("IR:");
