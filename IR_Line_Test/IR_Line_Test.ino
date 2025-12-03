@@ -239,6 +239,7 @@ void drive_IR(int speed) {
   int whiteState = digitalRead(whitePin);
   int restTime = 100;
   int currentSpeed = speed;
+  int distances[numIRSensors];  // Declare distances array
   
   if (loopCounter > 5){
   int frontLeft, frontRight;
@@ -430,8 +431,6 @@ bool bridgeModeActive = false;
 unsigned long bridgeModeStartTime = 0;
 const unsigned long BRIDGE_MODE_DURATION = 10000;  // 10 seconds in milliseconds
 int desiredSpeed = SPEED_5;  // Default to fast speed
-
-int loopCounter = 0;
 
 
 // #############################################################
