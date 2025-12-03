@@ -468,6 +468,7 @@ void loop() {
   right_motor.drive(right_speed_target);  
 
   // Process serial commands FIRST before executing states
+  String msgHold = msg;
   if (Serial.available() > 0){
     String msgRcd = Serial.readStringUntil('\n');
     msgRcd.trim(); // Remove any leading/trailing whitespace
@@ -479,7 +480,6 @@ void loop() {
     msg = msgRcd;
     acked = false;
   }
-  
 
     // Process commands and change state
     // Move Forward - Speed Levels 1-5 
@@ -871,6 +871,7 @@ void loop() {
 
     // Activate Brush Motor
     else if (msg == "ABM") {
+      msg = msgHold;
       if(!acked){
         Serial.println(String("ACK:") + msg);
         acked = true;
@@ -879,6 +880,7 @@ void loop() {
     }
     // Deactivate Brush Motor
     else if (msg == "DBM") {
+      msg = msgHold;
       if(!acked){
         Serial.println(String("ACK:") + msg);
         acked = true;
@@ -888,6 +890,7 @@ void loop() {
 
     // Lower Tray
     else if (msg == "LTY") {
+      msg = msgHold;
       if(!acked){
         Serial.println(String("ACK:") + msg);
         acked = true;
@@ -896,6 +899,7 @@ void loop() {
     }
     // Raise Tray
     else if (msg == "RTY") {
+      msg = msgHold
       if(!acked){
         Serial.println(String("ACK:") + msg);
         acked = true;
@@ -905,6 +909,7 @@ void loop() {
 
     // Read IR Sensor Distances
     else if (msg == "RIS") {
+      msg = msgHold;
       if(!acked){
         Serial.println(String("ACK:") + msg);
         acked = true;
