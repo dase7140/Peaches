@@ -971,18 +971,18 @@ def drive2():
     try:
         # Start Arduino autonomous line following
         print("[Drive] Starting Arduino autonomous mode (SD5)")
-        SDmode = "SD5"
+        SDmode = "MF5"
         if onBridge:
             currTime = time.time()
             timer = currTime - bridgeTimer
             if timer < 5:
-                SDmode = "SD3"
+                SDmode = "MF5"
             elif 5 <= timer and timer <= 15:
-                SDmode = "SD1"
+                SDmode = "MF5"
             else:
-                SDmode = "SD5"
+                SDmode = "MF5"
         elif onGravel:
-            SDmode = "SD5"
+            SDmode = "MF5"
 
         pi_2_ard(SDmode)
         sd5_sent = True
