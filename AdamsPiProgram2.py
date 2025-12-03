@@ -1411,14 +1411,27 @@ def main():
     finally:
         # Emergency shutdown - ensure motors are stopped
         print("\n[Main] Shutting down...")
+        
+        # CRITICAL: Send stop commands BEFORE stopping serial reader thread
         try:
-            pi_2_ard("MF0", max_retries=5, timeout=0.2)
-            pi_2_ard("DBM", max_retries=3, timeout=0.2)
-        except:
-            pass
+            print("[Main] Stopping motors...")
+            pi_2_ard("MF0", max_retries=5, timeout=1.0)
+            time.sleep(0.2)  # Allow command to be processed
+            print("[Main] Deactivating brush motor...")
+            pi_2_ard("DBM", max_retries=5, timeout=1.0)
+            time.sleep(0.2)  # Allow command to be processed
+            print("[Main] Motor shutdown commands sent")
+        except Exception as e:
+            print(f"[Main] Error during motor shutdown: {e}")
         
         # Clean shutdown of threads and camera
+        # Stop user input first (no longer needed)
         stop_User_Input()
+        
+        # Give Arduino time to process final commands before closing serial
+        time.sleep(0.5)
+        
+        # Stop serial reader LAST (after all commands sent)
         stop_serial_reader()
         
         try:
