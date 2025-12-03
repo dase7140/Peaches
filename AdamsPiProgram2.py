@@ -463,19 +463,17 @@ def pi_2_ard(command, max_retries=3, timeout=1.0):
 ###################
 # Pi Camera 
 ###################
-# picam = Picamera2()
-# config = picam.create_preview_configuration(main={"size": (640, 480)})
-# picam.configure(config)
-# picam.start()
+picam = Picamera2()
+config = picam.create_preview_configuration(main={"size": (640, 480)})
+picam.configure(config)
+picam.start()
 
 
 def capture_image():
-    # image_data = picam.capture_array()
-    # blurred = cv2.GaussianBlur(image_data, (5, 5), 0)
-    # hsv_frame = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
-    # return hsv_frame
-    print("[Camera] PiCamera disabled - returning None")
-    return None
+    image_data = picam.capture_array()
+    blurred = cv2.GaussianBlur(image_data, (5, 5), 0)
+    hsv_frame = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+    return hsv_frame
 
 def load_image_from_path(image_path):
     image = cv2.imread(image_path)
@@ -1436,11 +1434,11 @@ def main():
         # Stop serial reader LAST (after all commands sent)
         stop_serial_reader()
         
-        # try:
-        #     picam.stop()
-        #     print("[Main] Camera stopped")
-        # except:
-        #     pass
+        try:
+            picam.stop()
+            print("[Main] Camera stopped")
+        except:
+            pass
         
         print("[Main] Shutdown complete")
 
