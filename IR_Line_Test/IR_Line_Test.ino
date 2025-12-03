@@ -857,9 +857,9 @@ void loop() {
     //             }
     //             }
     //         }
-            }
-        }
-    }
+            
+        
+    
     loopCounter++;
       // If not entering bridge mode, use normal speed
       if (!bridgeModeActive) {
