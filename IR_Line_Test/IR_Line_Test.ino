@@ -301,10 +301,11 @@ void drive_IR(int speed) {
     int rightArea = distances[1] + distances[3];
     if (leftArea > rightArea){
       turnLeft(speed);
-  }
-      else {
+    }
+    else {
       turnRight(speed);
     }
+  }
 }
 
 // Arduino Safety Stop System
