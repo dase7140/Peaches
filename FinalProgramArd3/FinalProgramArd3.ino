@@ -235,7 +235,7 @@ int loopCounter = 0;
 void drive_IR(int speed) {
   int yellowState = digitalRead(yellowPin);
   int whiteState = digitalRead(whitePin);
-  int restTime = 25;  // Change this to increase turning 
+  int restTime = 35;  // Change this to increase turning 
   int currentSpeed = speed;
   int distances[numIRSensors];  // Declare distances array
   
@@ -300,7 +300,7 @@ void drive_IR(int speed) {
   }
   // Yellow sensor triggered (0) - turn right
   else if (yellowState == 0 && whiteState == 1) {
-    turnRight(speed);
+    //turnRight(speed);
     left_motor.drive(speed);
     right_motor.drive(-speed);  
     delay(restTime);
@@ -310,25 +310,31 @@ void drive_IR(int speed) {
   // Both sensors triggered - Faceplanting - Dont stop
   else if (yellowState == 0 && whiteState == 0) {
 
-    back(left_motor, right_motor, currentSpeed);
+    left_motor.drive(-speed);
+    right_motor.drive(-speed);  
     delay(restTime);
-    brake(left_motor, right_motor);
+    left_speed_target = 0;
+    right_speed_target = 0;
     ReadAllIRDistances(distances);
     int leftArea = distances[0] + distances[2];
     int rightArea = distances[1] + distances[3];
     if (leftArea > rightArea){
-      turnLeft(speed);
+      //turnLeft(speed);
+      left_motor.drive(-speed);
+      right_motor.drive(speed);  
       delay(restTime);
       left_speed_target = 0;
       right_speed_target = 0;
-      delay(restTime);
+      //delay(restTime);
     }
     else {
-      turnRight(speed);
+      //turnRight(speed);
+      left_motor.drive(speed);
+      right_motor.drive(-speed);  
       delay(restTime);
       left_speed_target = 0;
       right_speed_target = 0;
-      delay(restTime);
+      //delay(restTime);
     }
   }
 }

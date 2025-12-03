@@ -241,28 +241,28 @@ void drive_IR(int speed) {
   int currentSpeed = speed;
   int distances[numIRSensors];  // Declare distances array
   
-  if (loopCounter > 5){
-  int frontLeft, frontRight;
-  int distances[numIRSensors];
-  ReadFrontIRDistances(frontLeft, frontRight);
-  // Left - 0
-// Front Right - 1
-// Front Left - 2
-// Right - 3  
-// Back - 4
+//   if (loopCounter > 5){
+//   int frontLeft, frontRight;
+//   int distances[numIRSensors];
+//   ReadFrontIRDistances(frontLeft, frontRight);
+//   // Left - 0
+// // Front Right - 1
+// // Front Left - 2
+// // Right - 3  
+// // Back - 4
   
 
 
-  if (frontRight < 300 || frontLeft < 300){
-    currentSpeed = 100;
-  }
-  else {
-    currentSpeed = speed;
-  }
-  loopCounter = 0;
-  }
+//   if (frontRight < 300 || frontLeft < 300){
+//     currentSpeed = 100;
+//   }
+//   else {
+//     currentSpeed = speed;
+//   }
+//   loopCounter = 0;
+//   }
 
-    loopCounter++;
+//     loopCounter++;
 
 //   if (distances[1] < 100 && distances[2] > 100){
 //     turnLeft(speed);
