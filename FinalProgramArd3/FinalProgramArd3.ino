@@ -235,7 +235,7 @@ int loopCounter = 0;
 void drive_IR(int speed) {
   int yellowState = digitalRead(yellowPin);
   int whiteState = digitalRead(whitePin);
-  int restTime = 50;  // Change this to increase turning 
+  int restTime = 25;  // Change this to increase turning 
   int currentSpeed = speed;
   int distances[numIRSensors];  // Declare distances array
   
@@ -899,7 +899,7 @@ void loop() {
     }
     // Raise Tray
     else if (msg == "RTY") {
-      msg = msgHold
+      msg = msgHold;
       if(!acked){
         Serial.println(String("ACK:") + msg);
         acked = true;
