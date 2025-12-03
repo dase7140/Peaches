@@ -241,9 +241,7 @@ void drive_IR(int speed) {
 
   int frontLeft, frontRight;
   int distances[numIRSensors];
-  ReadAllIRDistances(distances);
-  frontLeft = distances[2];
-  frontRight = distances[1];
+  ReadFrontIRDistances(frontLeft, frontRight);
   // Left - 0
 // Front Right - 1
 // Front Left - 2
@@ -252,7 +250,7 @@ void drive_IR(int speed) {
   
 
 
-  if (distances[1] < 300 || distances[2] < 300){
+  if (frontRight < 300 || frontLeft < 300){
     currentSpeed = 100;
   }
   else {
@@ -294,9 +292,11 @@ void drive_IR(int speed) {
   }
   // Both sensors triggered - Faceplanting - Dont stop
   else if (yellowState == 0 && whiteState == 0) {
+
     back(left_motor, right_motor, currentSpeed);
     delay(restTime);
     brake(left_motor, right_motor);
+    ReadAllIRDistances(distances);
     int leftArea = distances[0] + distances[2];
     int rightArea = distances[1] + distances[3];
     if (leftArea > rightArea){
