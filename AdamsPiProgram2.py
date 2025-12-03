@@ -16,21 +16,30 @@ from pixy import *
 ########################
 #1 = red, 2 = green 3 = blue 4= yellow 5 = purple (GRAVEL)  6 = pink (RAMP)
 
-pixy.init()
-pixy.change_prog("color_connected_components")
 
-target_signature = 1
-
-dice_sig = 1 # 1 for red, 2 for green
 
 COLOR_MAP = {
     "red": 1,
     "green": 2,
     "blue": 3,
     "yellow": 4,
-    "purple": 5,   # GRAVEL
-    "orange": 6    # RAMP
+    "purple": 5,    # GRAVEL
+    "orange": 6,    # RAMP
+    "l_blue": 7     # OTHER FLAG COLOR
 }
+
+#Pixy Init:
+#1 = red, 2 = green 3 = blue 4= yellow 5 = purple (GRAVEL)  6 = pink (RAMP)
+centerX = 157
+deadband = 30
+target_Signature = COLOR_MAP["red"]  # change for dice designation, red die for now
+dice_sig = target_Signature
+lastTargetDirection = 0
+lostTargetTimer = 0
+searchTimeout = 3000
+
+pixy.init()
+pixy.change_prog("color_connected_components")
 
 
 #class to pull from 
@@ -64,30 +73,44 @@ def getTargetX(sig, count):
             return blocks[i].m_x
     return -1
 
-def Pixicam():
+def getColor(index):
+    return blocks[index].m_signature
+
+def Pixicam():  # FOR DICE
     """
     Queries Pixy camera for color blocks matching target signature.
+    Ignores targets in the TOP HALF of the frame.
     
     Returns:
-        bool - True if target detected, False otherwise
+        bool - True if target detected in bottom half, False otherwise
     """
     try:
         count = pixy.ccc_get_blocks(100, blocks)
-        #now is for incase we need a search timeout
         now = int(round(time.time() * 1000))
 
         if count > 0:
-            targetSeen = seeColor(target_signature, count)
-            targetX = getTargetX(target_signature, count)
+            for i in range(count):
 
-            if targetSeen and targetX != -1:
-                return True
-            
-            return False  # No matching signature found
+                # Only consider blocks with the target signature
+                if blocks[i].m_signature == target_Signature:
+
+                    x = blocks[i].m_x
+                    y = blocks[i].m_y
+
+                    # IGNORE dice in top half of screen
+                    if y < 150:   # top half
+                        continue  # skip it
+
+                    # valid block found in bottom half
+                    return True
+
+            # no valid dice detected in bottom half
+            return False
+
         else:
             return False
-    except Exception as e:
-        # Pixy communication error - return False to avoid crashing
+
+    except Exception:
         return False
 
 FLAG_WIDTH = 60 # TODO calibrate this value
@@ -95,102 +118,98 @@ FLAG_WIDTH = 60 # TODO calibrate this value
 def getArea(index):
     return (blocks[index].m_width * blocks[index].m_height)
 
-def getColor(index):
-    return blocks[index].m_signature
-
 def lookForFlags():
     """
-    looks for the signatures associated with the three flags on the course, checks if within distance threshold of them
-    returns which of the three flags are visible at any time
-
-    wrapped in function that determines which flag is present, updates booleans and updates relevant commands (raises tray, etc)
-
-    returns
-        success: bool - returns true if the camera successfully read, otherwise all arguments are false
-        first_flag: bool - whether flag with vertical rectangle orange is visible (before gravel)
-        second_flag: bool - whether the flag with square orange is visible (after gravel)
-        third_flag: bool - whether flag with vertical purple rectangle is visible (after bridge)
+    Detects flag colors (orange, light blue, purple) but ignores them
+    if they appear in the lower 20% of the screen.
     """
+
     try:
         count = pixy.ccc_get_blocks(100, blocks)
-        #now is for incase we need a search timeout
-        now = int(round(time.time() * 1000))
-        allSigs = [5,6]
-        first_flag = False
-        second_flag = False
-        third_flag = False
         if count == 0:
             return True, False, False, False
-        else:
-            for i in range(count):
-                colorSig = blocks[i].m_signature
-                h =  blocks[i].m_height
-                w =  blocks[i].m_width
-                #print("Block found: color:",colorSig,"h:",h,"w:",w)
-                tempColor = getColor(i)
-                if tempColor == COLOR_MAP["orange"]:
-                    if blocks[i].m_width > FLAG_WIDTH:
-                        if blocks[i].m_height / blocks[i].m_width > 1.5:
-                            first_flag = True
-                        else: 
-                            second_flag = True
-                if tempColor == COLOR_MAP["purple"]:
-                    if blocks[i].m_width > FLAG_WIDTH:
-                        if blocks[i].m_height / blocks[i].m_width > 1.5:
-                            third_flag = True
-            return True, first_flag,second_flag,third_flag
+
+        frame_height = 208
+        ignore_threshold = int(frame_height * 0.80)
+
+        # Colors involved in flag combinations
+        FLAG_SIGS = {
+            COLOR_MAP["orange"],
+            COLOR_MAP["l_blue"],
+            COLOR_MAP["purple"]
+        }
+
+        # Initialize seen colors
+        seen = {sig: False for sig in COLOR_MAP.values()}
+
+        for i in range(count):
+            sig = blocks[i].m_signature
+            y   = blocks[i].m_y
+
+            # Ignore ONLY flag-related colors in lower 20%
+            if sig in FLAG_SIGS and y > ignore_threshold:
+                continue
+
+            # Mark color as seen
+            if sig in seen:
+                seen[sig] = True
+
+        # Combinations for flags
+        first_flag  = seen[COLOR_MAP["orange"]] and seen[COLOR_MAP["purple"]]
+        second_flag = seen[COLOR_MAP["orange"]] and seen[COLOR_MAP["l_blue"]]
+        third_flag  = seen[COLOR_MAP["purple"]] and seen[COLOR_MAP["l_blue"]]
+
+        return True, first_flag, second_flag, third_flag
+
     except Exception as e:
-        # Pixy communication error - return False to avoid crashing
-        # (Pixy library will already have printed error message)
+        print("[PIXY ERROR] lookForFlags exception:", e)
         return False, False, False, False
 
+# Debounce counters
+first_flag_count = 0
+second_flag_count = 0
+third_flag_count = 0
+
+DEBOUNCE_FRAMES = 3   # number of consecutive frames required
 
 def pixySetFlags():
     """
-    When called, checks the current set of pixy blocks to determine if we have seen the colors relevent to the flags
-    on the course
-
-    If so, makes relevent variable adjustments:
-    See first flag: raises collection tray, bool blocks any further commands to lower it, increases speeds in all navigation commands
-    See second flag: removes gravel boolean and sets bridge one. This changes speeds and may initiate a bridge animation
-    See third flag: reset first two flags
-
-    returns 
-        nothing
-
+    Debounced flag detection for gravel/bridge progression.
+    A flag must be detected for DEBOUNCE_FRAMES in a row
+    before applying mode changes.
     """
-    #print("Setting pixy flags:")
 
-    global onGravel, onBridge, BASE_SPEED, TURN_SPEED, VEER_SPEED 
+    global onGravel, onBridge
+    global first_flag_count, second_flag_count, third_flag_count
+
     success, first_flag, second_flag, third_flag = lookForFlags()
-    if success == False:
+    if not success:
         return
-    else:
-        if first_flag: # first flag, trigger gravel protocol
-            if onGravel == False:
-                print("[PIXY FLAGS] Entering gravel mode")
-                onGravel = True 
-                pi_2_ard("DBM")
-                BASE_SPEED = 4
-                TURN_SPEED = 4
-                VEER_SPEED = 5
-        elif second_flag: # TODO will want to implement more robust bridge crossing mechanism here
-            if onBridge == False:
-                print("[PIXY FLAGS] Entering bridge mode")
-                onGravel = False
-                onBridge = True
-                BASE_SPEED = 2
-                TURN_SPEED = 2
-                VEER_SPEED = 3
-        elif third_flag:
-            if onGravel or onBridge:
-                print("[PIXY FLAGS] Leaving special areas")
-                onBridge = False
-                onGravel = False
-                BASE_SPEED = 2
-                TURN_SPEED = 2
-                VEER_SPEED = 3
-                
+
+    # --- Update debounce counters ---
+    first_flag_count  = first_flag_count  + 1 if first_flag  else 0
+    second_flag_count = second_flag_count + 1 if second_flag else 0
+    third_flag_count  = third_flag_count  + 1 if third_flag  else 0
+
+    # ---- First Flag: Enter Gravel Mode ----
+    if first_flag_count >= DEBOUNCE_FRAMES and not onGravel:
+        print("[PIXY FLAGS] Entering gravel mode (debounced)")
+        onGravel = True
+        onBridge = False
+
+    # ---- Second Flag: Enter Bridge Mode ----
+    elif second_flag_count >= DEBOUNCE_FRAMES and not onBridge:
+        print("[PIXY FLAGS] Entering bridge mode (debounced)")
+        onBridge = True
+        onGravel = False
+
+    # ---- Third Flag: Exit special modes ----
+    elif third_flag_count >= DEBOUNCE_FRAMES:
+        if onGravel or onBridge:
+            print("[PIXY FLAGS] Leaving special areas (debounced)")
+        onGravel = False
+        onBridge = False
+
 
         
 
@@ -226,7 +245,7 @@ def serial_reader():
     - IR:*: Routed to ir_queue for read_ir_sensors()
     - Other: Printed as general Arduino output
     """
-    global serial_reader_running, estop_triggered
+    global serial_reader_running, estop_triggere, onGravel, onBridge
     
     print("[Serial Reader] Thread started")
     
@@ -248,6 +267,14 @@ def serial_reader():
                     # Route IR data to ir_queue
                     elif line.startswith("IR:"):
                         ir_queue.put(line)
+
+                    elif line == "BMA":
+                        print("[Arduino] Bridge Mode Activated")
+                        onBridge = True
+
+                    elif line == "BMD":
+                        print("[Arduino] Bridge Mode Deactivated")
+                        onBridge = False
                     
                     # Print other messages
                     else:
@@ -1250,7 +1277,11 @@ def drive2():
     # Brush motor state management
     brush_motor_active = False
     brush_motor_off_time = None
-    BRUSH_MOTOR_DELAY = 5.0  # seconds to keep brush on after target disappears
+    BRUSH_MOTOR_DELAY = 10.0  # seconds to keep brush on after target detected
+    
+    # Bridge mode brush motor deactivation
+    bridge_brush_disabled_time = None
+    BRIDGE_BRUSH_DISABLE_DURATION = 5.0  # seconds to keep brush off when on bridge
     
     # Control mode state
     autonomous_mode = True  # True = Arduino controls, False = Pi controls
@@ -1290,84 +1321,70 @@ def drive2():
                 # Arduino automatically resumes drive_IR after repositionArduino() completes
                 # No action needed from Pi
             
-            # # ===== PIXICAM TARGET DETECTION AND CONTROL MODE SWITCHING =====
-            # try:
-            #     target_detected = Pixicam()
-            #     pixy_error_count = 0  # Reset error count on successful read
-            # except Exception as e:
-            #     # Pixy error - assume no target detected
-            #     target_detected = False
-            #     pixy_error_count += 1
-                
-            #     # Warn if errors persist
-            #     if pixy_error_count == MAX_PIXY_ERRORS:
-            #         print(f"[Pixy] WARNING: {MAX_PIXY_ERRORS} consecutive errors - camera may be disconnected")
-            #         print("[Pixy] Continuing without target detection...")
+            # ===== PIXICAM TARGET DETECTION AND MANUAL STEERING =====
+            pixySetFlags()  # Check and set flags first
+            
+            # Handle bridge/gravel mode - deactivate brush motor
+            if onBridge or onGravel:
+                if bridge_brush_disabled_time is None:
+                    print("[Drive] Entering bridge/gravel mode - deactivating brush motor")
+                    pi_2_ard("DBM")
+                    brush_motor_active = False
+                    brush_motor_off_time = None
+                    bridge_brush_disabled_time = time.time()
 
-            # # TARGET DETECTED - Switch to manual control for steering
-            # if target_detected:
-            #     # Get target X position for steering
-            #     count = pixy.ccc_get_blocks(100, blocks)
-            #     target_x = getTargetX(target_signature, count)
+            # Reset bridge timer when not on bridge/gravel anymore
+            if bridge_brush_disabled_time is not None and not onBridge and not onGravel:
+                elapsed_time = time.time() - bridge_brush_disabled_time
+                if elapsed_time >= BRIDGE_BRUSH_DISABLE_DURATION:
+                    print(f"[Drive] Bridge mode ended - brush motor can be reactivated (was disabled for {elapsed_time:.1f}s)")
+                    bridge_brush_disabled_time = None
+                else:
+                    # Still within the 5-second disable period after leaving bridge
+                    print(f"[Drive] Bridge disable period active ({BRIDGE_BRUSH_DISABLE_DURATION - elapsed_time:.1f}s remaining)")
+                    # Let dice detection run, but block motor activation below
+            
+            # Normal operation - check for dice and manage brush motor
+            # (This section runs when not on bridge/gravel and bridge timer has expired)
+            
+            # ===== DICE DETECTION WITH PIXICAM =====
+            try:
+                target_detected = Pixicam()
+                pixy_error_count = 0  # Reset error count on successful read
+            except Exception as e:
+                # Pixy error - assume no target detected
+                target_detected = False
+                pixy_error_count += 1
                 
-            #     if target_x != -1:
-            #         # Switch to manual control mode if not already
-            #         if autonomous_mode:
-            #             print("[Drive] Target detected - switching to MANUAL CONTROL")
-            #             autonomous_mode = False
-            #             sd5_sent = False
-            #             manual_control_start_time = time.time()
-                    
-            #         # Calculate steering based on target position
-            #         x_error = target_x - PIXY_CENTER_X
-                    
-            #         # Determine steering command
-            #         if abs(x_error) < PIXY_DEADBAND:
-            #             # Target centered - go straight
-            #             steering_cmd = "MF3"
-            #         elif x_error > 0:
-            #             # Target to the right - turn right
-            #             steering_cmd = "MR3"
-            #         else:
-            #             # Target to the left - turn left
-            #             steering_cmd = "ML3"
-                    
-            #         # Send command if different from last
-            #         if steering_cmd != last_manual_cmd:
-            #             pi_2_ard(steering_cmd)
-            #             last_manual_cmd = steering_cmd
-            #             print(f"[Drive] Manual steering: X={target_x}, error={x_error:.0f} → {steering_cmd}")
-                    
-            #         # Activate brush motor
-            #         if not brush_motor_active:
-            #             if not onGravel:
-            #                 print("[Drive] Activating brush motor")
-            #                 pi_2_ard("ABM")
-            #                 brush_motor_active = True
-                    
-            #         # Cancel brush motor shutdown timer
-            #         brush_motor_off_time = None
-                    
-            # NO TARGET - Return to autonomous mode
-            else:
-                # Switch back to autonomous mode if we were in manual
-                if not autonomous_mode:
-                    print("[Drive] Target lost - returning to AUTONOMOUS MODE")
-                    pi_2_ard("SD5")
-                    sd5_sent = True
-                    autonomous_mode = True
-                    last_manual_cmd = None
-                
-                # Handle brush motor shutdown timer
-                if brush_motor_active:
-                    if brush_motor_off_time is None:
-                        print(f"[Drive] Target lost - brush motor will turn off in {BRUSH_MOTOR_DELAY}s")
-                        brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
-                    elif time.time() >= brush_motor_off_time:
-                        print("[Drive] Turning off brush motor")
-                        pi_2_ard("DBM")
-                        brush_motor_active = False
-                        brush_motor_off_time = None
+                # Warn if errors persist
+                if pixy_error_count == MAX_PIXY_ERRORS:
+                    print(f"[Pixy] WARNING: {MAX_PIXY_ERRORS} consecutive errors - camera may be disconnected")
+                    print("[Pixy] Continuing without target detection...")
+            
+            # Target detected - activate brush motor with 10-second timer
+            if target_detected:
+                if not brush_motor_active and bridge_brush_disabled_time is None:
+                    # Only activate if NOT in bridge disable period
+                    print("[Drive] Dice detected - activating brush motor for 10 seconds")
+                    pi_2_ard("ABM")
+                    brush_motor_active = True
+                    brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
+                elif brush_motor_active and brush_motor_off_time is not None:
+                    # Dice still detected - reset the timer to keep motor running
+                    brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
+                elif bridge_brush_disabled_time is not None:
+                    # Dice detected but still in bridge disable period
+                    elapsed = BRIDGE_BRUSH_DISABLE_DURATION - (time.time() - bridge_brush_disabled_time)
+                    if elapsed > 0:
+                        print(f"[Drive] Dice detected but bridge disable active ({elapsed:.1f}s remaining)")
+            
+            # Check if it's time to turn off brush motor (after 10 seconds)
+            if brush_motor_active and brush_motor_off_time is not None:
+                if time.time() >= brush_motor_off_time:
+                    print("[Drive] 10-second timer expired - turning off brush motor")
+                    pi_2_ard("DBM")
+                    brush_motor_active = False
+                    brush_motor_off_time = None
             
             time.sleep(0.05)  # Small delay to prevent busy loop
             

@@ -277,8 +277,6 @@ void drive_IR(int speed) {
     // Do nothing
   }
 
-  
-}
 
 // Arduino Safety Stop System
 const int CRITICAL_STOP_DISTANCE = 115;  // mm - Emergency stop threshold
@@ -791,6 +789,7 @@ void loop() {
       if (elapsedTime >= BRIDGE_MODE_DURATION) {
         // Timer expired - exit bridge mode and return to normal speed
         bridgeModeActive = false;
+        Serial.println("BMD");
         bridgeModeStartTime = 0;
         current_speed = SPEED_5;
       } else {
@@ -818,6 +817,7 @@ void loop() {
                     current_speed = SPEED_1;
                     bridgeModeActive = true;
                     bridgeModeStartTime = millis();
+                    Serial.println("BMA");
                 }
                 }
             }
