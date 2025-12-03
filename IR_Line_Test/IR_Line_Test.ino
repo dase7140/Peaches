@@ -426,21 +426,20 @@ void setup() {
 
 
 void loop() {
-  
-
   // Process serial commands FIRST before executing states
+  // CRITICAL: Check serial EVERY loop iteration for responsive control
   if (Serial.available() > 0){
     String msg = Serial.readStringUntil('\n');
     msg.trim(); // Remove any leading/trailing whitespace
 
-    // Ignore empty messages
+    // Process commands even if empty message (skip to end)
     if (msg.length() == 0){
-      return; 
+      // Empty message - do nothing, continue to drive_IR if active
     }
     
-    // Process commands and change state
+    // Process commands and change state (only if message is not empty)
     // Move Forward - Speed Levels 1-5 
-    if (msg == "MF1") {
+    else if (msg == "MF1") {
       safetyStopActive = false;
       inGracePeriod = false;  // Terminate grace period on new command
       lineFollowingActive = false;  // Disable line following
@@ -689,11 +688,13 @@ void loop() {
     // Activate Brush Motor
     else if (msg == "ABM") {
       Serial.println("ACK:ABM");
+      brake(left_motor, right_motor);
       BrushMotorOn();
     }
     // Deactivate Brush Motor
     else if (msg == "DBM") {
       Serial.println("ACK:DBM");
+      brake(left_motor, right_motor);
       BrushMotorOff();
     }
 

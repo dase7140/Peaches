@@ -245,7 +245,7 @@ def serial_reader():
     - IR:*: Routed to ir_queue for read_ir_sensors()
     - Other: Printed as general Arduino output
     """
-    global serial_reader_running, estop_triggere, onGravel, onBridge
+    global serial_reader_running, estop_triggered, onGravel, onBridge
     
     print("[Serial Reader] Thread started")
     
