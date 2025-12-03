@@ -112,7 +112,7 @@ const int SPEED_1 = 100;
 const int SPEED_2 = 125;
 const int SPEED_3 = 150;
 const int SPEED_4 = 175;
-const int SPEED_5 = 200;
+const int SPEED_5 = 255;
 
 const int SPEED_ARRAY[6] = {0,SPEED_1,SPEED_2,SPEED_3,SPEED_4,SPEED_5}; 
 
@@ -860,7 +860,7 @@ void loop() {
             
         
     
-    loopCounter++;
+    //loopCounter++;
       // If not entering bridge mode, use normal speed
       if (!bridgeModeActive) {
         current_speed = SPEED_5;
