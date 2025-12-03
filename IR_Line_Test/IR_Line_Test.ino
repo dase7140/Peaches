@@ -244,7 +244,7 @@ void drive_IR(int speed) {
   
   // Check for critical obstacle
   if (frontLeft < 300|| frontRight < 300){
-    currentSpeed = 180;
+    currentSpeed = 120;
   }
   else {
     currentSpeed = speed;
