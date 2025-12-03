@@ -236,7 +236,7 @@ void veerRight(int leftSpd, int rightSpd){
 void drive_IR(int speed) {
   int yellowState = digitalRead(yellowPin);
   int whiteState = digitalRead(whitePin);
-  int restTime = 25;
+  int restTime = 100;
   int currentSpeed = speed;
 
   int frontLeft, frontRight;
@@ -251,13 +251,15 @@ void drive_IR(int speed) {
   }
 
   if (frontLeft < 100 && frontRight > 100){
-    turnLeft(speed);
+    turnLeft(speed/.75);
   }
   else if (frontRight < 100 && frontLeft > 100){
-    turnRight(speed);
+    turnRight(speed/.75);
   }
   else if (frontLeft < 100 && frontRight < 100){
     back(left_motor, right_motor, currentSpeed);
+    delay(restTime);
+    turnRight(speed/.75);
   }
   
   // Both sensors read 1 (both on line) - go forward
@@ -266,11 +268,11 @@ void drive_IR(int speed) {
   }
   // White sensor triggered (0) - turn left
   else if (whiteState == 0 && yellowState == 1  ) {
-    turnLeft(speed);
+    turnLeft(speed/.75);
   }
   // Yellow sensor triggered (0) - turn right
   else if (yellowState == 0 && whiteState == 1) {
-    turnRight(speed);
+    turnRight(speed/.75);
   }
   // Both sensors triggered - Faceplanting - Dont stop
   else if (yellowState == 0 && whiteState == 0) {
