@@ -232,9 +232,6 @@ void veerRight(int leftSpd, int rightSpd){
     right_motor.drive(rightSpd);
 }
 
-// Obstacle avoidance timing
-unsigned long lastAvoidanceTime = 0;
-const unsigned long AVOIDANCE_COOLDOWN = 3000;  // 3 seconds cooldown between avoidance turns
 
 void drive_IR(int speed) {
   int yellowState = digitalRead(yellowPin);
@@ -245,87 +242,43 @@ void drive_IR(int speed) {
   int frontLeft, frontRight;
   int distances[numIRSensors];
   ReadAllIRDistances(distances);
+  frontLeft = distances[2];
+  frontRight = distances[1];
   // Left - 0
 // Front Right - 1
 // Front Left - 2
 // Right - 3  
 // Back - 4
   
-// First check if ANY sensor reads below 500mm (obstacle present)
-bool obstacleDetected = false;
-for (int i = 0; i < numIRSensors-1; i++) {
-  if (distances[i] < 500) {
-    obstacleDetected = true;
-    break;  // Found an obstacle, no need to check more
-  }
-}
-
-// Only proceed with turning if an obstacle is detected AND cooldown period has passed
-unsigned long currentTime = millis();
-if (obstacleDetected && (currentTime - lastAvoidanceTime >= AVOIDANCE_COOLDOWN)) {
-  // Find which sensor has the largest reading (most open space)
-  int maxDistance = distances[0];
-  int maxIndex = 0;
-  
-  for (int i = 0; i < numIRSensors-1; i++) {  // Check all sensors 0-3
-    if (distances[i] > maxDistance) {
-      maxDistance = distances[i];
-      maxIndex = i;
-    }
-  }
-
-  // Turn towards the sensor with most open space
-  if (maxIndex == 3) {
-    // Right sensor has most space - turn right
-    brake(left_motor, right_motor);
-    delay(100);
-    turnRight(speed);
-    delay(300);
-    brake(left_motor, right_motor);
-    delay(50);
-    lastAvoidanceTime = millis();  // Update timer after turn
-    return;  // Exit early - let next loop iteration handle line following
-  }
-  else if (maxIndex == 0) {
-    // Left sensor has most space - turn left
-    brake(left_motor, right_motor);
-    delay(100);
-    turnLeft(speed);
-    delay(300);
-    brake(left_motor, right_motor);
-    delay(50);
-    lastAvoidanceTime = millis();  // Update timer after turn
-    return;  // Exit early - let next loop iteration handle line following
-  }
-}
 
 
-  if (distances[1] < 300|| distances[2] < 300){
-    currentSpeed = 120;
+  if (distances[1] < 300 || distances[2] < 300){
+    currentSpeed = 100;
   }
   else {
     currentSpeed = speed;
   }
 
-  if (distances[1] < 100 && distances[2] > 100){
-    turnLeft(speed);
-  }
-  else if (distances[2] < 100 && distances[1] > 100){
-    turnRight(speed);
-  }
-  else if (distances[2] < 100 && distances[1] < 100){
-    back(left_motor, right_motor, currentSpeed);
-    delay(restTime);
-    brake(left_motor, right_motor);
-    int leftArea = distances[0] + distances[2];
-    int rightArea = distances[1] + distances[3];
-    if (leftArea > rightArea){
-      turnLeft(speed);
-    }
-    else {
-      turnRight(speed);
-    }
-  }
+//   if (distances[1] < 100 && distances[2] > 100){
+//     turnLeft(speed);
+
+//   }
+//   else if (distances[2] < 100 && distances[1] > 100){
+//     turnRight(speed);
+//   }
+//   else if (distances[2] < 100 && distances[1] < 100){
+//     back(left_motor, right_motor, currentSpeed);
+//     delay(restTime);
+//     brake(left_motor, right_motor);
+//     int leftArea = distances[0] + distances[2];
+//     int rightArea = distances[1] + distances[3];
+//     if (leftArea > rightArea){
+//       turnLeft(speed);
+//     }
+//     else {
+//       turnRight(speed);
+//     }
+//   }
   
   // Both sensors read 1 (both on line) - go forward
   if (yellowState == 1 && whiteState == 1) {
@@ -341,8 +294,17 @@ if (obstacleDetected && (currentTime - lastAvoidanceTime >= AVOIDANCE_COOLDOWN))
   }
   // Both sensors triggered - Faceplanting - Dont stop
   else if (yellowState == 0 && whiteState == 0) {
-    // Do nothing
+    back(left_motor, right_motor, currentSpeed);
+    delay(restTime);
+    brake(left_motor, right_motor);
+    int leftArea = distances[0] + distances[2];
+    int rightArea = distances[1] + distances[3];
+    if (leftArea > rightArea){
+      turnLeft(speed);
   }
+      else {
+      turnRight(speed);
+    }
 }
 
 // Arduino Safety Stop System
