@@ -463,263 +463,263 @@ def pi_2_ard(command, max_retries=3, timeout=1.0):
 ###################
 # Pi Camera 
 ###################
-picam = Picamera2()
-config = picam.create_preview_configuration(main={"size": (640, 480)})
-picam.configure(config)
-picam.start()
+# picam = Picamera2()
+# config = picam.create_preview_configuration(main={"size": (640, 480)})
+# picam.configure(config)
+# picam.start()
 
 
-def capture_image():
-    image_data = picam.capture_array()
-    blurred = cv2.GaussianBlur(image_data, (5, 5), 0)
-    hsv_frame = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
-    return hsv_frame
+# def capture_image():
+#     image_data = picam.capture_array()
+#     blurred = cv2.GaussianBlur(image_data, (5, 5), 0)
+#     hsv_frame = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+#     return hsv_frame
 
-def load_image_from_path(image_path):
-    image = cv2.imread(image_path)
-    if image is None:
-        raise FileNotFoundError(f"Image not found at path: {image_path}")
-    return image   
-
-
-# Yellow Detection HSV Thresholds
-# These can be tuned based on lighting conditions
-# HSV ranges for yellow (adjust as needed)
-YELLOW_LOWER_H = 80      # Lower hue bound
-YELLOW_UPPER_H = 135      # Upper hue bound
-YELLOW_LOWER_S = 35      # Lower saturation (increase to filter pale yellows)
-YELLOW_UPPER_S = 255     # Upper saturation
-YELLOW_LOWER_V = 60      # Lower value/brightness (increase in bright conditions)
-YELLOW_UPPER_V = 255     # Upper value/brightness
+# def load_image_from_path(image_path):
+#     image = cv2.imread(image_path)
+#     if image is None:
+#         raise FileNotFoundError(f"Image not found at path: {image_path}")
+#     return image   
 
 
-def yellow_mask(hsv_frame):
-    # Define lower and upper bounds for yellow in HSV
-    lower_yellow = np.array([YELLOW_LOWER_H, YELLOW_LOWER_S, YELLOW_LOWER_V])
-    upper_yellow = np.array([YELLOW_UPPER_H, YELLOW_UPPER_S, YELLOW_UPPER_V])
-    # Create binary mask: pixels within range are white (255), others are black (0)
-    mask = cv2.inRange(hsv_frame, lower_yellow, upper_yellow)
-    return mask
+# # Yellow Detection HSV Thresholds
+# # These can be tuned based on lighting conditions
+# # HSV ranges for yellow (adjust as needed)
+# YELLOW_LOWER_H = 80      # Lower hue bound
+# YELLOW_UPPER_H = 135      # Upper hue bound
+# YELLOW_LOWER_S = 35      # Lower saturation (increase to filter pale yellows)
+# YELLOW_UPPER_S = 255     # Upper saturation
+# YELLOW_LOWER_V = 60      # Lower value/brightness (increase in bright conditions)
+# YELLOW_UPPER_V = 255     # Upper value/brightness
+
+
+# def yellow_mask(hsv_frame):
+#     # Define lower and upper bounds for yellow in HSV
+#     lower_yellow = np.array([YELLOW_LOWER_H, YELLOW_LOWER_S, YELLOW_LOWER_V])
+#     upper_yellow = np.array([YELLOW_UPPER_H, YELLOW_UPPER_S, YELLOW_UPPER_V])
+#     # Create binary mask: pixels within range are white (255), others are black (0)
+#     mask = cv2.inRange(hsv_frame, lower_yellow, upper_yellow)
+#     return mask
 
 
 
-# Morphological operation parameters (adjust for your needs)
-MORPH_KERNEL_SIZE = 5       # Size of structuring element (5x5 is a good start)
-MORPH_OPEN_ITERATIONS = 2   # Number of opening operations (removes small noise)
-MORPH_CLOSE_ITERATIONS = 3  # Number of closing operations (fills small gaps)
+# # Morphological operation parameters (adjust for your needs)
+# MORPH_KERNEL_SIZE = 5       # Size of structuring element (5x5 is a good start)
+# MORPH_OPEN_ITERATIONS = 2   # Number of opening operations (removes small noise)
+# MORPH_CLOSE_ITERATIONS = 3  # Number of closing operations (fills small gaps)
 
-def clean_mask(mask):
-    # Create structuring element (kernel) for morphological operations
-    kernel = np.ones((MORPH_KERNEL_SIZE, MORPH_KERNEL_SIZE), np.uint8)
+# def clean_mask(mask):
+#     # Create structuring element (kernel) for morphological operations
+#     kernel = np.ones((MORPH_KERNEL_SIZE, MORPH_KERNEL_SIZE), np.uint8)
     
-    # Opening: Erosion followed by Dilation
-    # Removes small white noise/spots while preserving larger shapes
-    opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=MORPH_OPEN_ITERATIONS)
+#     # Opening: Erosion followed by Dilation
+#     # Removes small white noise/spots while preserving larger shapes
+#     opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=MORPH_OPEN_ITERATIONS)
     
-    # Closing: Dilation followed by Erosion
-    # Fills small black holes inside white regions and connects nearby regions
-    cleaned_mask = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=MORPH_CLOSE_ITERATIONS)
+#     # Closing: Dilation followed by Erosion
+#     # Fills small black holes inside white regions and connects nearby regions
+#     cleaned_mask = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=MORPH_CLOSE_ITERATIONS)
     
-    return cleaned_mask
+#     return cleaned_mask
 
 
-drive_with_ellipse = True
+# drive_with_ellipse = True
 
 
-def find_yellow_ellipse(mask):
-    """
-    Fits an elipse to the largest yellow contour in the mask
+# def find_yellow_ellipse(mask):
+#     """
+#     Fits an elipse to the largest yellow contour in the mask
 
-    Args
-        maskL numpy array - binary mask with yellow regions
+#     Args
+#         maskL numpy array - binary mask with yellow regions
     
-    Returns:
-        Tuple: (found, cy, angle)
-        found: bool - true if yellow region was detected
-        cy: int - y coordinate of centroid
-        angle: int - angle between the horizontal axis and the major axis of the ellipse
-    """
-    # Find all contours in the mask
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+#     Returns:
+#         Tuple: (found, cy, angle)
+#         found: bool - true if yellow region was detected
+#         cy: int - y coordinate of centroid
+#         angle: int - angle between the horizontal axis and the major axis of the ellipse
+#     """
+#     # Find all contours in the mask
+#     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    # Check if any contours were found
-    if len(contours) == 0:
-        return False, 0, 0
+#     # Check if any contours were found
+#     if len(contours) == 0:
+#         return False, 0, 0
     
-    # Find the largest contour by area
-    largest_contour = max(contours, key=cv2.contourArea)
+#     # Find the largest contour by area
+#     largest_contour = max(contours, key=cv2.contourArea)
     
-    # Filter out very small contours (likely noise)
-    MIN_CONTOUR_AREA = 150  # Adjust this threshold as needed
-    if cv2.contourArea(largest_contour) < MIN_CONTOUR_AREA:
-        return False, 0, 0
+#     # Filter out very small contours (likely noise)
+#     MIN_CONTOUR_AREA = 150  # Adjust this threshold as needed
+#     if cv2.contourArea(largest_contour) < MIN_CONTOUR_AREA:
+#         return False, 0, 0
     
-    ellipse = cv2.fitEllipse(largest_contour)
-    ((_, cy), (_, _), angle) = ellipse
-    angle = angle-90
+#     ellipse = cv2.fitEllipse(largest_contour)
+#     ((_, cy), (_, _), angle) = ellipse
+#     angle = angle-90
 
-    return True, cy, angle
+#     return True, cy, angle
 
-def find_yellow_centroid(mask):
-    """
-    Finds the largest yellow contour in the mask and computes its centroid.
+# def find_yellow_centroid(mask):
+#     """
+#     Finds the largest yellow contour in the mask and computes its centroid.
     
-    Args:
-        mask: numpy array - Binary mask with yellow regions
+#     Args:
+#         mask: numpy array - Binary mask with yellow regions
         
-    Returns:
-        tuple: (found, cx, cy)
-            found: bool - True if yellow region was detected
-            cx: int - X coordinate of centroid (0 if not found)
-            cy: int - Y coordinate of centroid (0 if not found)
-    """
-    # Find all contours in the mask
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+#     Returns:
+#         tuple: (found, cx, cy)
+#             found: bool - True if yellow region was detected
+#             cx: int - X coordinate of centroid (0 if not found)
+#             cy: int - Y coordinate of centroid (0 if not found)
+#     """
+#     # Find all contours in the mask
+#     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    # Check if any contours were found
-    if len(contours) == 0:
-        return False, 0, 0
+#     # Check if any contours were found
+#     if len(contours) == 0:
+#         return False, 0, 0
     
-    # Find the largest contour by area
-    largest_contour = max(contours, key=cv2.contourArea)
+#     # Find the largest contour by area
+#     largest_contour = max(contours, key=cv2.contourArea)
     
-    # Filter out very small contours (likely noise)
-    MIN_CONTOUR_AREA = 150  # Adjust this threshold as needed
-    if cv2.contourArea(largest_contour) < MIN_CONTOUR_AREA:
-        return False, 0, 0
+#     # Filter out very small contours (likely noise)
+#     MIN_CONTOUR_AREA = 150  # Adjust this threshold as needed
+#     if cv2.contourArea(largest_contour) < MIN_CONTOUR_AREA:
+#         return False, 0, 0
     
-    # Calculate moments of the largest contour
-    M = cv2.moments(largest_contour)
+#     # Calculate moments of the largest contour
+#     M = cv2.moments(largest_contour)
     
-    # Compute centroid coordinates
-    # Check for division by zero
-    if M["m00"] == 0:
-        return False, 0, 0
+#     # Compute centroid coordinates
+#     # Check for division by zero
+#     if M["m00"] == 0:
+#         return False, 0, 0
     
-    cx = int(M["m10"] / M["m00"])
-    cy = int(M["m01"] / M["m00"])
+#     cx = int(M["m10"] / M["m00"])
+#     cy = int(M["m01"] / M["m00"])
     
-    return True, cx, cy
+#     return True, cx, cy
 
 
 
-def compute_error(centroid_y, image_height):
-    """
-    Computes the vertical error between the yellow centroid and the target position.
-    Camera is mounted UPSIDE DOWN on the LEFT side of the robot.
+# def compute_error(centroid_y, image_height):
+#     """
+#     Computes the vertical error between the yellow centroid and the target position.
+#     Camera is mounted UPSIDE DOWN on the LEFT side of the robot.
     
-    Target position is the center of the BOTTOM HALF of the image (at 3/4 from top).
+#     Target position is the center of the BOTTOM HALF of the image (at 3/4 from top).
     
-    Args:
-        centroid_y: int - Y coordinate of the yellow centroid
-        image_height: int - Height of the camera frame in pixels
+#     Args:
+#         centroid_y: int - Y coordinate of the yellow centroid
+#         image_height: int - Height of the camera frame in pixels
         
-    Returns:
-        error: float - Vertical offset from target position
-                      Positive = yellow is too far (robot needs to turn left)
-                      Negative = yellow is too close (robot needs to turn right)
-                      Zero = yellow is at target position (go straight)
-    """
-    # Calculate the target y-coordinate: center of the image
-    target_y = image_height / 2
+#     Returns:
+#         error: float - Vertical offset from target position
+#                       Positive = yellow is too far (robot needs to turn left)
+#                       Negative = yellow is too close (robot needs to turn right)
+#                       Zero = yellow is at target position (go straight)
+#     """
+#     # Calculate the target y-coordinate: center of the image
+#     target_y = image_height / 2
     
-    # Compute error: positive means yellow is below target (higher Y) = too far in real world
-    # Since camera is upside down: high Y value in image = far from robot in real world
-    error = centroid_y - target_y
+#     # Compute error: positive means yellow is below target (higher Y) = too far in real world
+#     # Since camera is upside down: high Y value in image = far from robot in real world
+#     error = centroid_y - target_y
     
-    return error
+#     return error
 
 
-# Yellow Line Following Control Parameters
-ERROR_THRESHOLD = 70        # Deadband in pixels - go straight if error < this
-ANGLE_THRESHOLD = 10        # Angular deadband - dont turn if angle is less than threshold
-EXTREME_ERROR_THRESHOLD = 150  # Pixels - switch from veer to full turn if error exceeds this
-EXTREME_ANGLE_THRESHOLD = 35   # Degrees - switch from veer to full turn if angle exceeds this
-BASE_SPEED = 2              # Default speed level (1-5)
-TURN_SPEED = 2              # Speed when turning to follow line
-VEER_SPEED = 3              # speed when veering
+# # Yellow Line Following Control Parameters
+# ERROR_THRESHOLD = 70        # Deadband in pixels - go straight if error < this
+# ANGLE_THRESHOLD = 10        # Angular deadband - dont turn if angle is less than threshold
+# EXTREME_ERROR_THRESHOLD = 150  # Pixels - switch from veer to full turn if error exceeds this
+# EXTREME_ANGLE_THRESHOLD = 35   # Degrees - switch from veer to full turn if angle exceeds this
+# BASE_SPEED = 2              # Default speed level (1-5)
+# TURN_SPEED = 2              # Speed when turning to follow line
+# VEER_SPEED = 3              # speed when veering
 
-def yellow_line_steering(error):
-    """
-    Converts centroid error to motor steering command.
+# def yellow_line_steering(error):
+#     """
+#     Converts centroid error to motor steering command.
     
-    Camera mounted upside down on LEFT side:
-    - Positive error = yellow too far (top of upside-down image) → turn LEFT
-    - Negative error = yellow too close (bottom of upside-down image) → turn RIGHT
-    - Small error = go straight FORWARD
+#     Camera mounted upside down on LEFT side:
+#     - Positive error = yellow too far (top of upside-down image) → turn LEFT
+#     - Negative error = yellow too close (bottom of upside-down image) → turn RIGHT
+#     - Small error = go straight FORWARD
     
-    Args:
-        error: float - Error from compute_error()
+#     Args:
+#         error: float - Error from compute_error()
         
-    Returns:
-        str - Motor command ("MF2", "ML2", "MR2", etc.)
-    """
-    # Within deadband - go straight
-    if abs(error) < ERROR_THRESHOLD:
-        return f"MF{BASE_SPEED}"
+#     Returns:
+#         str - Motor command ("MF2", "ML2", "MR2", etc.)
+#     """
+#     # Within deadband - go straight
+#     if abs(error) < ERROR_THRESHOLD:
+#         return f"MF{BASE_SPEED}"
     
-    # Positive error - yellow is too far, turn LEFT to get closer
-    elif error > 0:
-        return f"ML{TURN_SPEED}"
+#     # Positive error - yellow is too far, turn LEFT to get closer
+#     elif error > 0:
+#         return f"ML{TURN_SPEED}"
     
-    # Negative error - yellow is too close, turn RIGHT to move away
-    else:
-        return f"MR{TURN_SPEED}"
+#     # Negative error - yellow is too close, turn RIGHT to move away
+#     else:
+#         return f"MR{TURN_SPEED}"
 
-def yellow_line_steering_ellipse(y_error, angle):
-    """
-    Enhanced ellipse-based steering with progressive response:
-    - Extreme errors: Stop and do full turn (ML/MR)
-    - Moderate errors: Veer to correct (VL/VR)
-    - Small errors: Go straight (MF)
+# def yellow_line_steering_ellipse(y_error, angle):
+#     """
+#     Enhanced ellipse-based steering with progressive response:
+#     - Extreme errors: Stop and do full turn (ML/MR)
+#     - Moderate errors: Veer to correct (VL/VR)
+#     - Small errors: Go straight (MF)
     
-    Args:
-        y_error: float - Vertical centroid error in pixels
-        angle: float - Ellipse angle in degrees
+#     Args:
+#         y_error: float - Vertical centroid error in pixels
+#         angle: float - Ellipse angle in degrees
         
-    Returns:
-        str - Motor command (e.g., "MF2", "VL2", "ML1")
-    """
-    # Check for EXTREME conditions requiring full stop and turn
-    # Priority 1: Extreme centroid error
-    if abs(y_error) > EXTREME_ERROR_THRESHOLD:
-        if y_error > 0:
-            # Yellow too far - stop and turn LEFT
-            return f"ML{TURN_SPEED}"
-        else:
-            # Yellow too close - stop and turn RIGHT
-            return f"MR{TURN_SPEED}"
+#     Returns:
+#         str - Motor command (e.g., "MF2", "VL2", "ML1")
+#     """
+#     # Check for EXTREME conditions requiring full stop and turn
+#     # Priority 1: Extreme centroid error
+#     if abs(y_error) > EXTREME_ERROR_THRESHOLD:
+#         if y_error > 0:
+#             # Yellow too far - stop and turn LEFT
+#             return f"ML{TURN_SPEED}"
+#         else:
+#             # Yellow too close - stop and turn RIGHT
+#             return f"MR{TURN_SPEED}"
     
-    # Priority 2: Extreme angle error (even if centroid is centered)
-    if abs(angle) > EXTREME_ANGLE_THRESHOLD:
-        if angle < 0:
-            # Line angled left - stop and turn LEFT to straighten
-            return f"ML{TURN_SPEED}"
-        else:
-            # Line angled right - stop and turn RIGHT to straighten
-            return f"MR{TURN_SPEED}"
+#     # Priority 2: Extreme angle error (even if centroid is centered)
+#     if abs(angle) > EXTREME_ANGLE_THRESHOLD:
+#         if angle < 0:
+#             # Line angled left - stop and turn LEFT to straighten
+#             return f"ML{TURN_SPEED}"
+#         else:
+#             # Line angled right - stop and turn RIGHT to straighten
+#             return f"MR{TURN_SPEED}"
     
-    # MODERATE conditions - veer while moving forward
-    # Centroid is reasonably centered, adjust angle with veering
-    if abs(y_error) < ERROR_THRESHOLD:
-        if abs(angle) < ANGLE_THRESHOLD:
-            # Both centered - go straight
-            return f"MF{BASE_SPEED}"
-        elif angle < 0:
-            # Line angled left - veer left to align
-            return f"VL{VEER_SPEED}"
-        else:
-            # Line angled right - veer right to align
-            return f"VR{VEER_SPEED}"
+#     # MODERATE conditions - veer while moving forward
+#     # Centroid is reasonably centered, adjust angle with veering
+#     if abs(y_error) < ERROR_THRESHOLD:
+#         if abs(angle) < ANGLE_THRESHOLD:
+#             # Both centered - go straight
+#             return f"MF{BASE_SPEED}"
+#         elif angle < 0:
+#             # Line angled left - veer left to align
+#             return f"VL{VEER_SPEED}"
+#         else:
+#             # Line angled right - veer right to align
+#             return f"VR{VEER_SPEED}"
     
-    # Centroid has moderate error - veer to correct
-    else:
-        if y_error > 0:
-            # Yellow too far - veer LEFT to get closer
-            return f"VL{VEER_SPEED}"
-        else:
-            # Yellow too close - veer RIGHT to move away
-            return f"VR{VEER_SPEED}"
+#     # Centroid has moderate error - veer to correct
+#     else:
+#         if y_error > 0:
+#             # Yellow too far - veer LEFT to get closer
+#             return f"VL{VEER_SPEED}"
+#         else:
+#             # Yellow too close - veer RIGHT to move away
+#             return f"VR{VEER_SPEED}"
 
 
 
@@ -851,343 +851,7 @@ def wait_for_start():
 
 
 
-def reposition():
-    """
-    Intelligent repositioning function when obstacle detected.
-    
-    Strategy:
-    1. Try to find yellow line ellipse and align to it
-       - If angle is off, turn to straighten the ellipse
-       - Target angle is 0° (horizontal line in upside-down view)
-    2. If no ellipse found, fall back to IR sensor-based repositioning
-       - Read IR sensors to assess surroundings
-       - If back is clear (>100mm), reverse to create space
-       - Calculate left area vs right area and turn towards clearance
-    
-    Returns:
-        bool - True if repositioning succeeded, False if failed
-    """
-    print("[Reposition] Starting repositioning maneuver")
-    
-    # PRIORITY 1: Try to align to yellow line ellipse
-    try:
-        # Capture and process frame
-        hsv_frame = capture_image()
-        mask = yellow_mask(hsv_frame)
-        cleaned_mask = clean_mask(mask)
-        
-        # Find yellow ellipse
-        found, cy, angle = find_yellow_ellipse(cleaned_mask)
-        
-        if found:
-            print(f"[Reposition] Yellow ellipse found: angle={angle:.1f}°")
-            
-            # Target angle is 0° (horizontal line when camera upside down on left side)
-            # Camera orientation: upside down on LEFT
-            # When line is straight ahead, it appears horizontal in upside-down view
-            TARGET_ANGLE = 0.0
-            ANGLE_THRESHOLD = 15.0  # degrees - deadband for "close enough"
-            
-            angle_error = angle - TARGET_ANGLE
-            
-            if abs(angle_error) < ANGLE_THRESHOLD:
-                print(f"[Reposition] Ellipse already aligned (error: {angle_error:.1f}°)")
-                return True
-            
-            # Determine turn direction and duration based on angle error
-            # Positive angle error = line angled right → turn RIGHT to straighten
-            # Negative angle error = line angled left → turn LEFT to straighten
-            turn_duration = min(abs(angle_error) / 180.0, 0.5)  # Scale turn time, max 0.5s
-            
-            if angle_error > 0:
-                print(f"[Reposition] Line angled right ({angle:.1f}°) - turning RIGHT to align")
-                pi_2_ard("MR2")
-                time.sleep(turn_duration + 0.3)
-            else:
-                print(f"[Reposition] Line angled left ({angle:.1f}°) - turning LEFT to align")
-                pi_2_ard("ML2")
-                time.sleep(turn_duration + 0.3)
-            
-            pi_2_ard("MF0")  # Stop motors
-            print("[Reposition] Ellipse alignment complete")
-            return True
-            
-    except Exception as e:
-        print(f"[Reposition] Error during ellipse alignment: {e}")
-        # Fall through to IR sensor method
-    
-    # FALLBACK: IR sensor-based repositioning
-    print("[Reposition] No ellipse found - using IR sensor method")
-    
-    # Step 1: Read current sensor values
-    ir_data = read_ir_sensors()
-    if ir_data is None or not ir_data.valid:
-        print("[Reposition] Failed to read IR sensors")
-        return False
-    
-    print(f"[Reposition] Sensor readings: {ir_data}")
-    
-    # Helper function to cap sensor readings (VL53L0X returns 8190+ when out of range)
-    def cap_distance(distance, max_distance=2000):
-        """Cap distance readings to handle out-of-range sensors"""
-        if distance >= 8000:  # VL53L0X out-of-range indicator
-            return max_distance
-        return min(distance, max_distance)
-    
-    # Step 2: Check if back is clear and reverse if possible
-    BACK_CLEAR_THRESHOLD = 100  # mm
-    back_distance = cap_distance(ir_data.back)
-    
-    if back_distance > BACK_CLEAR_THRESHOLD:
-        print(f"[Reposition] Back clear ({back_distance}mm) - reversing")
-        pi_2_ard("MB3")  # Reverse at speed 3
-        time.sleep(0.4)  # Reverse for 400ms
-        pi_2_ard("MF0")  # Stop motors
-        time.sleep(0.4)
-    else:
-        print(f"[Reposition] Back blocked ({back_distance}mm) - skipping reverse")
-    
-    # Step 3: Cap sensor readings and calculate left and right clearance areas
-    front_left_capped = cap_distance(ir_data.front_left)
-    left_capped = cap_distance(ir_data.left)
-    front_right_capped = cap_distance(ir_data.front_right)
-    right_capped = cap_distance(ir_data.right)
-    
-    left_area = front_left_capped*2 + left_capped
-    right_area = front_right_capped*2 + right_capped
-    
-    print(f"[Reposition] Left area: {left_area}mm (FL:{front_left_capped} + L:{left_capped})")
-    print(f"[Reposition] Right area: {right_area}mm (FR:{front_right_capped} + R:{right_capped})")
-    
-    # Step 4: Turn towards the direction with more clearance
-    MIN_AREA_DIFFERENCE = 100  # mm - Minimum difference to prefer one side
-    MINIMUM_CLEARANCE = 300     # mm - Minimum total area to consider turning
-    
-    if left_area < MINIMUM_CLEARANCE and right_area < MINIMUM_CLEARANCE:
-        print(f"[Reposition] Both sides blocked (L:{left_area}, R:{right_area}) - attempting large turn")
-        pi_2_ard("ML2")  # Turn left
-        time.sleep(0.5)  # Turn for 500ms 
-    elif left_area > right_area:
-        print(f"[Reposition] Turning LEFT (left area larger by {left_area - right_area}mm)")
-        pi_2_ard("ML2")  # Turn left at speed 2
-        time.sleep(0.5)  # Turn for 500ms
-    else:
-        print(f"[Reposition] Turning RIGHT (right area larger by {right_area - left_area}mm)")
-        pi_2_ard("MR2")  # Turn right at speed 2
-        time.sleep(0.5)  # Turn for 500ms
-    
-    pi_2_ard("MF0")  # Stop motors
-    
-    print("[Reposition] Repositioning complete")
-    return True
 
-
-
-def drive():
-    """
-    Main driving control loop.
-    Monitors for stop conditions and handles motor shutdown.
-    Manages Pixicam target detection and brush motor control.
-    """
-    global user_stop_requested, estop_triggered,onGravel,onBridge
-    
-    print("[Drive] Starting main control loop")
-    print("[Drive] Type 'STOP' at any time to emergency stop")
-    
-    # Brush motor state management
-    brush_motor_active = False
-    brush_motor_off_time = None
-    BRUSH_MOTOR_DELAY = 5.0  # seconds to keep brush on after target disappears
-    
-    # Yellow line following state management
-    last_steering_cmd = None
-    yellow_lost_counter = 0
-    YELLOW_LOST_THRESHOLD = 5  # frames - tolerate brief occlusions
-    SEARCH_ENABLED = True
-    search_start_time = None
-    SEARCH_TIMEOUT = 3.0  # seconds - max time to search before stopping
-    
-    # Pixy camera error tracking
-    pixy_error_count = 0
-    MAX_PIXY_ERRORS = 10  # Warn after this many consecutive errors
-    
-    try:
-        # while True:
-        #     pixySetFlags()
-        #     time.sleep(0.5)
-
-        while True:
-            # Check for user stop command
-            if user_stop_requested:
-                print("\n[Drive] User STOP command received - shutting down motors")
-                pi_2_ard("MF0", max_retries=5, timeout=0.2)  # Stop motors
-                pi_2_ard("DBM", max_retries=3, timeout=0.2)  # Turn off brush motor
-                break
-            
-            # Check for Arduino emergency stop
-            if estop_triggered:
-                print("\n[Drive] Arduino ESTOP triggered - initiating repositioning")
-                estop_triggered = False  # Reset flag after handling
-                # Arduino has already stopped motors and started grace period
-                # Now reposition to find clear path
-                if not reposition():
-                    print("[Drive] Repositioning failed - staying stopped")
-                    time.sleep(0.5)
-                else:
-                    # Repositioning succeeded - reset steering state to resume driving
-                    print("[Drive] Repositioning succeeded - resuming yellow line following")
-                    last_steering_cmd = None  # Force next steering command to be sent
-            
-            # ===== YELLOW LINE/WALL FOLLOWING (Priority: Always check first) =====
-            # This runs FIRST to ensure continuous line following
-            # Capture and process frame
-            hsv_frame = capture_image()
-            
-            # Create yellow mask
-            mask = yellow_mask(hsv_frame)
-            
-            # Clean up noise
-            cleaned_mask = clean_mask(mask)
-            
-            # Find yellow centroid
-            found, cx, cy = find_yellow_centroid(cleaned_mask)
-            
-            if found:
-                if drive_with_ellipse:
-                    found, cy, angle = find_yellow_ellipse(cleaned_mask)
-                    yellow_lost_counter = 0
-                    search_start_time = None
-                    
-                    # Get image dimensions
-                    image_height, image_width = hsv_frame.shape[:2]
-
-                    y_error = compute_error(cy,image_height)
-                    steering_cmd = yellow_line_steering_ellipse(y_error, angle)
-                    if steering_cmd != last_steering_cmd:
-                        pi_2_ard(steering_cmd)
-                        last_steering_cmd = steering_cmd
-                        
-                        # Debug output when command changes
-                        if abs(y_error) > ERROR_THRESHOLD or abs(angle) > ANGLE_THRESHOLD:
-                            print(f"[YellowFollowEllipse] Error: {y_error:.1f}px, Angle: {angle:.1f} → {steering_cmd}")
-                        else:
-                            print(f"[YellowFollowEllipse] Centered → {steering_cmd}")
-                else:
-                    # Reset lost counter and search timer - yellow is visible
-                    yellow_lost_counter = 0
-                    search_start_time = None
-                    
-                    # Get image dimensions
-                    image_height, image_width = hsv_frame.shape[:2]
-                    
-                    # Compute error (camera is upside down on left side)
-                    error = compute_error(cy, image_height)
-                    
-                    # Generate steering command
-                    steering_cmd = yellow_line_steering(error)
-                    
-                    # Only send command if it's different from last time
-                    if steering_cmd != last_steering_cmd:
-                        pi_2_ard(steering_cmd)
-                        last_steering_cmd = steering_cmd
-                        
-                        # Debug output when command changes
-                        if abs(error) > ERROR_THRESHOLD:
-                            print(f"[YellowFollow] Error: {error:.1f}px → {steering_cmd}")
-                        else:
-                            print(f"[YellowFollow] Centered → {steering_cmd}")
-            
-            else:
-                # Yellow not detected - increment lost counter
-                yellow_lost_counter += 1
-                
-                # Only react after several consecutive lost frames
-                if yellow_lost_counter >= YELLOW_LOST_THRESHOLD:
-                    
-                    if SEARCH_ENABLED:
-                        # Start search timer on first detection
-                        if yellow_lost_counter == YELLOW_LOST_THRESHOLD:
-                            print("[YellowFollow] Yellow line lost - starting search pattern")
-                            search_start_time = time.time()
-                            search_cmd = "ML1"  # Slow turn left to search
-                            if search_cmd != last_steering_cmd:
-                                pi_2_ard(search_cmd)
-                                last_steering_cmd = search_cmd
-                        
-                        # Check if search has timed out
-                        elif search_start_time is not None and (time.time() - search_start_time) > SEARCH_TIMEOUT:
-                            print(f"[YellowFollow] Search timeout after {SEARCH_TIMEOUT}s - stopping")
-                            stop_cmd = "MF0"
-                            if stop_cmd != last_steering_cmd:
-                                pi_2_ard(stop_cmd)
-                                last_steering_cmd = stop_cmd
-                            search_start_time = None  # Reset for next search
-                    
-                    elif not SEARCH_ENABLED and yellow_lost_counter == YELLOW_LOST_THRESHOLD:
-                        # Search disabled - just stop
-                        print("[YellowFollow] Yellow line lost - stopping")
-                        stop_cmd = "MF0"
-                        if stop_cmd != last_steering_cmd:
-                            pi_2_ard(stop_cmd)
-                            last_steering_cmd = stop_cmd
-                
-                else:
-                    # Still within tolerance - keep last command
-                    # Reset search timer since we're still within threshold
-                    search_start_time = None
-            
-            # ===== PIXICAM TARGET DETECTION AND BRUSH MOTOR CONTROL =====
-            # This runs AFTER yellow line following to avoid blocking steering
-            try:
-                target_detected = Pixicam()
-                pixy_error_count = 0  # Reset error count on successful read
-            except Exception as e:
-                # Pixy error - assume no target detected
-                target_detected = False
-                pixy_error_count += 1
-                
-                # Warn if errors persist
-                if pixy_error_count == MAX_PIXY_ERRORS:
-                    print(f"[Pixy] WARNING: {MAX_PIXY_ERRORS} consecutive errors - camera may be disconnected")
-                    print("[Pixy] Continuing without target detection...")
-            
-            # Target detected - activate brush motor
-            if target_detected:
-                if not brush_motor_active:
-                    if not onGravel:
-                        print("[Drive] Target detected - activating brush motor")
-                        pi_2_ard("ABM")
-                        brush_motor_active = True
-                    # Reset steering command so next yellow line command will be sent
-                    last_steering_cmd = None
-                # Cancel any pending shutdown timer only if brush motor is active
-                # This prevents flickering detections from resetting the timer
-                if brush_motor_active:
-                    brush_motor_off_time = None
-            
-            # Target lost - start shutdown timer (only if motor was active)
-            elif not target_detected and brush_motor_active:
-                if brush_motor_off_time is None:
-                    print(f"[Drive] Target lost - brush motor will turn off in {BRUSH_MOTOR_DELAY}s")
-                    brush_motor_off_time = time.time() + BRUSH_MOTOR_DELAY
-            
-            # Check if it's time to turn off brush motor
-            if brush_motor_off_time is not None and time.time() >= brush_motor_off_time:
-                print("[Drive] Turning off brush motor")
-                pi_2_ard("DBM")
-                brush_motor_active = False
-                brush_motor_off_time = None
-                # Reset steering command so next yellow line command will be sent
-                last_steering_cmd = None
-            
-            time.sleep(0.05)  # Small delay to prevent busy loop
-            
-    except KeyboardInterrupt:
-        print("\n[Drive] Keyboard interrupt - shutting down motors")
-        pi_2_ard("MF0", max_retries=5, timeout=0.2)
-        pi_2_ard("DBM", max_retries=3, timeout=0.2)
-    
-    print("[Drive] Control loop ended")
 
 def reposition2():
     """
@@ -1434,11 +1098,11 @@ def main():
         # Stop serial reader LAST (after all commands sent)
         stop_serial_reader()
         
-        try:
-            picam.stop()
-            print("[Main] Camera stopped")
-        except:
-            pass
+        # try:
+        #     picam.stop()
+        #     print("[Main] Camera stopped")
+        # except:
+        #     pass
         
         print("[Main] Shutdown complete")
 

@@ -232,6 +232,9 @@ void veerRight(int leftSpd, int rightSpd){
     right_motor.drive(rightSpd);
 }
 
+// Obstacle avoidance timing
+unsigned long lastAvoidanceTime = 0;
+const unsigned long AVOIDANCE_COOLDOWN = 3000;  // 3 seconds cooldown between avoidance turns
 
 void drive_IR(int speed) {
   int yellowState = digitalRead(yellowPin);
@@ -248,9 +251,6 @@ void drive_IR(int speed) {
 // Right - 3  
 // Back - 4
   
-int maxDistance = distances[0];
-int maxIndex = 0;
-
 // First check if ANY sensor reads below 500mm (obstacle present)
 bool obstacleDetected = false;
 for (int i = 0; i < numIRSensors-1; i++) {
@@ -260,10 +260,14 @@ for (int i = 0; i < numIRSensors-1; i++) {
   }
 }
 
-// Only proceed with turning if an obstacle is detected
-if (obstacleDetected) {
-  // Find which sensor has the largest reading
-  for (int i = 1; i < numIRSensors-1; i++) {
+// Only proceed with turning if an obstacle is detected AND cooldown period has passed
+unsigned long currentTime = millis();
+if (obstacleDetected && (currentTime - lastAvoidanceTime >= AVOIDANCE_COOLDOWN)) {
+  // Find which sensor has the largest reading (most open space)
+  int maxDistance = distances[0];
+  int maxIndex = 0;
+  
+  for (int i = 0; i < numIRSensors-1; i++) {  // Check all sensors 0-3
     if (distances[i] > maxDistance) {
       maxDistance = distances[i];
       maxIndex = i;
@@ -276,14 +280,22 @@ if (obstacleDetected) {
     brake(left_motor, right_motor);
     delay(100);
     turnRight(speed);
-    delay(200);
+    delay(300);
+    brake(left_motor, right_motor);
+    delay(50);
+    lastAvoidanceTime = millis();  // Update timer after turn
+    return;  // Exit early - let next loop iteration handle line following
   }
   else if (maxIndex == 0) {
     // Left sensor has most space - turn left
     brake(left_motor, right_motor);
     delay(100);
     turnLeft(speed);
-    delay(200);
+    delay(300);
+    brake(left_motor, right_motor);
+    delay(50);
+    lastAvoidanceTime = millis();  // Update timer after turn
+    return;  // Exit early - let next loop iteration handle line following
   }
 }
 
