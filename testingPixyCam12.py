@@ -92,7 +92,7 @@ def Pixicam():  # FOR DICE
                     y = blocks[i].m_y
 
                     # IGNORE dice in top half of screen
-                    if y < 100:   # top half
+                    if y < 150:   # top half
                         continue  # skip it
 
                     # valid block found in bottom half
