@@ -240,21 +240,21 @@ void drive_IR(int speed) {
   int currentSpeed = speed;
 
   int frontLeft, frontRight;
-  int distanaces[numIRSensors];
-  ReadAllIRDistances(distanaces);
+  int distances[numIRSensors];
+  ReadAllIRDistances(distances);
   // Left - 0
 // Front Right - 1
 // Front Left - 2
 // Right - 3  
 // Back - 4
   
-int maxDistance = distanaces[0];
+int maxDistance = distances[0];
 int maxIndex = 0;
 
 // First check if ANY sensor reads below 500mm (obstacle present)
 bool obstacleDetected = false;
 for (int i = 0; i < numIRSensors-1; i++) {
-  if (distanaces[i] < 500) {
+  if (distances[i] < 500) {
     obstacleDetected = true;
     break;  // Found an obstacle, no need to check more
   }
@@ -264,8 +264,8 @@ for (int i = 0; i < numIRSensors-1; i++) {
 if (obstacleDetected) {
   // Find which sensor has the largest reading
   for (int i = 1; i < numIRSensors-1; i++) {
-    if (distanaces[i] > maxDistance) {
-      maxDistance = distanaces[i];
+    if (distances[i] > maxDistance) {
+      maxDistance = distances[i];
       maxIndex = i;
     }
   }
@@ -288,20 +288,20 @@ if (obstacleDetected) {
 }
 
 
-  if (distanaces[1] < 300|| distanaces[2] < 300){
+  if (distances[1] < 300|| distances[2] < 300){
     currentSpeed = 120;
   }
   else {
     currentSpeed = speed;
   }
 
-  if (distanaces[1] < 100 && distanaces[2] > 100){
+  if (distances[1] < 100 && distances[2] > 100){
     turnLeft(speed);
   }
-  else if (distanaces[2] < 100 && distanaces[1] > 100){
+  else if (distances[2] < 100 && distances[1] > 100){
     turnRight(speed);
   }
-  else if (distanaces[2] < 100 && distanaces[1] < 100){
+  else if (distances[2] < 100 && distances[1] < 100){
     back(left_motor, right_motor, currentSpeed);
     delay(restTime);
     brake(left_motor, right_motor);
